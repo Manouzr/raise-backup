@@ -193,3 +193,37 @@ type BidAdvisory = {
 - [ ] **Human-in-the-loop bidding only** — no autonomous bot or scraping against real platforms
 - [ ] **Not** a dashboard-as-main-feature — the advisory + the human's tap is the product
 - [ ] The demo clearly shows what *we* built at the event
+
+---
+
+# V0 — BidEdge (implémentation, juillet 2026)
+
+Le produit s'appelle désormais **BidEdge**. V0 Next.js 15 (App Router) · React 19 · TypeScript strict · Tailwind v4 · Framer Motion (`motion/react`) · Zustand · SSE. Aucune DB : simulateur en mémoire côté serveur + journal/garde-fous en `localStorage`. **Aucune enchère réelle** : le tap enregistre la décision (façon CRM de chasse), tout passe par la couche d'adapters mockée.
+
+## Lancer
+
+```bash
+npm install
+npm run dev        # http://localhost:3000
+```
+
+## Parcours démo
+
+`/home` (landing) → `/onboarding` (5 étapes) → `/` (radar, le lot Seiko ferme en 58 s) → « Voir la suggestion » → « Enchérir €X maintenant » (tap humain) → surenchère adverse unique à +5 s → « Répondre » → fin à 0:00 → « J'ai gagné/perdu l'enchère » → l'entrée apparaît dans `/journal` et les advisories suivants la citent.
+
+## Routes API (MVP)
+
+| Route | Rôle |
+|---|---|
+| `GET /api/feed` | SSE — `snapshot` à la connexion puis `lot`/`meta` chaque seconde, `outbid`, `closed`, `scan`, `ping` |
+| `POST /api/bid` | `{ lotId, amount }` → `MockAdapter.placeBid` (latence 300–600 ms). Seule écriture, toujours déclenchée par un tap |
+| `GET /api/advisory/[lotId]?ceiling=210` | `BidAdvisory` recalculé (suggestion, cote, edge, comparables). `learnsFrom` fusionné côté client depuis le journal |
+| `GET /api/scan?category=&label=` | SSE court — étapes du scan de catégorie puis cote établie |
+
+## Structure
+
+- `lib/contracts.ts` — contrats figés (`LotEvent`, `BidAdvisory`) + types wire
+- `lib/simulator/` — moteur en mémoire (dramaturgie du lot chaud, surenchère unique, scans)
+- `lib/platforms/` — `PlatformAdapter` + `MockAdapter` ; `ebay.ts`/`catawiki.ts`/`drouot.ts` = stubs (API officielles post-hackathon, swap = un one-liner dans `index.ts`)
+- `lib/taste/` — journal (localStorage) → `learnsFrom` réinjecté dans chaque advisory
+- `app/(app)/` — radar `/`, `/categories`, `/lot/[id]`, `/journal`, `/reglages`, `/organisation` · `app/(marketing)/home` — landing · `/login`, `/onboarding`

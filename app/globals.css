@@ -1,0 +1,124 @@
+@import "tailwindcss";
+
+/* Design system BidEdge — copie exacte du prototype.
+   Une seule couleur d'action (teal), sémantique en texte/teinte uniquement,
+   boutons pill, cartes 16–24px, une seule ombre douce. */
+
+@theme {
+  /* encres & surfaces */
+  --color-ink: #0a0b0d;
+  --color-body: #5b616e;
+  --color-muted: #7c828a;
+  --color-hairline: #dee1e6;
+  --color-app: #f7f7f7;
+  --color-control: #eef0f3;
+  --color-control-hover: #e2e6ea;
+
+  /* accent action — avec parcimonie */
+  --color-accent: #147879;
+  --color-accent-press: #0e5a5a;
+  --color-accent-tint: #e8f1f1;
+  --color-accent-disabled: #a9c6c6;
+
+  /* accent sur fond sombre */
+  --color-accent-dark: #3fb6b7;
+  --color-accent-dark2: #4ec2c3;
+
+  /* sémantique (texte/teinte uniquement, jamais en fond de bouton) */
+  --color-up: #05b169;
+  --color-up-strong: #059460;
+  --color-up-tint: #e6f6ef;
+  --color-down: #cf202f;
+  --color-down-tint: #fdeef0;
+  --color-warn: #b45309;
+
+  /* sombre (login / rail onboarding / landing hero) */
+  --color-dark-card: #16181c;
+  --color-dark-border: #23262c;
+  --color-dark-text: #a8acb3;
+  --color-dark-input: #0f1114;
+  --color-dark-input-border: #2a2e35;
+
+  /* typo */
+  --font-sans: var(--font-inter), Inter, -apple-system, system-ui, sans-serif;
+  --font-mono: var(--font-jetbrains), "JetBrains Mono", monospace;
+
+  /* ombres */
+  --shadow-soft: 0 4px 16px rgba(10, 11, 13, 0.05);
+  --shadow-card: 0 1px 2px rgba(10, 11, 13, 0.04), 0 4px 16px rgba(10, 11, 13, 0.05);
+  --shadow-pop: 0 1px 2px rgba(10, 11, 13, 0.04), 0 12px 40px rgba(10, 11, 13, 0.08);
+  --shadow-overlay: 0 32px 80px rgba(10, 11, 13, 0.3);
+  --shadow-cta: 0 6px 18px rgba(20, 120, 121, 0.35);
+
+  /* animations */
+  --animate-pulse-teal: pulseR 2.4s ease infinite;
+  --animate-pulse-red: pulseRed 1.8s ease infinite;
+  --animate-blink: blink 1.6s ease infinite;
+  --animate-fade-up: fadeUp 0.3s ease both;
+  --animate-card-in: cardIn 0.35s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  --animate-floaty: floaty 8s ease-in-out infinite alternate;
+  --animate-floaty2: floaty2 9.5s ease-in-out infinite alternate;
+  --animate-slide-bar: slideBar 1.4s linear infinite;
+}
+
+@keyframes pulseR {
+  0% { box-shadow: 0 0 0 0 rgba(20, 120, 121, 0.3); }
+  70% { box-shadow: 0 0 0 11px rgba(20, 120, 121, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(20, 120, 121, 0); }
+}
+@keyframes pulseRed {
+  0% { box-shadow: 0 0 0 0 rgba(207, 32, 47, 0.3); }
+  70% { box-shadow: 0 0 0 9px rgba(207, 32, 47, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(207, 32, 47, 0); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.2; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes cardIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.96); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes growY {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+@keyframes floaty {
+  from { transform: translateY(-8px) rotate(-1.6deg); }
+  to { transform: translateY(10px) rotate(1.2deg); }
+}
+@keyframes floaty2 {
+  from { transform: translateY(6px) rotate(1.8deg); }
+  to { transform: translateY(-9px) rotate(-1deg); }
+}
+@keyframes slideBar {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(260%); }
+}
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  background: var(--color-app);
+  color: var(--color-ink);
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: rgba(20, 120, 121, 0.22);
+}
+
+input {
+  outline: none;
+}
+input:focus {
+  border-color: var(--color-accent) !important;
+}
