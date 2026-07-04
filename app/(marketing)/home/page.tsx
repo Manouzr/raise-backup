@@ -94,8 +94,8 @@ export default function LandingPage() {
   const ssStr = String(tVal % 60).padStart(2, "0");
   const edge = (v: number) => "−" + Math.round((1 - v / 280) * 100) + "%";
   const flashOn = Date.now() < sim.flashUntil;
-  const tColor = tVal <= 30 ? "#C92F39" : "#16150F";
-  const hotBorder = flashOn ? "#C92F39" : "#147879";
+  const tColor = tVal <= 30 ? "#c13a2e" : "#16150F";
+  const hotBorder = flashOn ? "#c13a2e" : "#1f6b47";
   const tTxt = `${mm}:${ssStr}`;
   const bidTxt = `€${sim.bid}`;
   const sugTxt = `€${sug}`;
@@ -143,7 +143,7 @@ export default function LandingPage() {
       <div
         className="overflow-hidden"
         style={{
-          background: "radial-gradient(56% 44% at 50% 0%,rgba(20,120,121,.06),transparent 62%)",
+          background: "radial-gradient(56% 44% at 50% 0%,rgba(31,107,71,.06),transparent 62%)",
         }}
       >
         <div className="max-w-[1160px] mx-auto px-8 pt-24 pb-16 text-center">
@@ -424,7 +424,7 @@ export default function LandingPage() {
                       left: "30%",
                       width: "46%",
                       background:
-                        "linear-gradient(90deg,rgba(20,120,121,.3),#147879 45%,rgba(20,120,121,.3))",
+                        "linear-gradient(90deg,rgba(31,107,71,.3),#1f6b47 45%,rgba(31,107,71,.3))",
                     }}
                   />
                   <div className="absolute left-[52%] top-[5px] w-0.5 h-4 bg-accent-press" />
@@ -516,7 +516,7 @@ export default function LandingPage() {
                     left: "26%",
                     width: "48%",
                     background:
-                      "linear-gradient(90deg,rgba(20,120,121,.3),#147879 42%,rgba(20,120,121,.3))",
+                      "linear-gradient(90deg,rgba(31,107,71,.3),#1f6b47 42%,rgba(31,107,71,.3))",
                   }}
                 />
                 <div className="absolute left-[46%] top-[44px] w-[2.5px] h-[26px] bg-accent-press rounded-[2px]" />
@@ -530,9 +530,9 @@ export default function LandingPage() {
                 </span>
                 <span
                   className="absolute left-[13.5%] w-[11.5%] top-[19px]"
-                  style={{ borderTop: "1.5px dashed rgba(20,120,121,.6)" }}
+                  style={{ borderTop: "1.5px dashed rgba(31,107,71,.6)" }}
                 />
-                <span className="absolute left-[25%] top-[13px] text-[10px]" style={{ color: "rgba(20,120,121,.85)" }}>
+                <span className="absolute left-[25%] top-[13px] text-[10px]" style={{ color: "rgba(31,107,71,.85)" }}>
                   ›
                 </span>
                 <span className="absolute left-[26.8%] top-2 inline-flex items-center rounded-full bg-up-tint text-up-strong px-[11px] py-[3px] text-[11.5px] font-bold">
@@ -561,7 +561,7 @@ export default function LandingPage() {
                   <span className="text-[12.5px] text-dark-text">Ce garde-fou est permanent.</span>
                 </span>
                 <span className="flex items-center gap-2.5 flex-none">
-                  <span className="inline-flex rounded-full bg-[rgba(63,182,183,0.14)] text-accent-dark2 text-[10.5px] font-bold px-[11px] py-1">
+                  <span className="inline-flex rounded-full bg-[rgba(91,195,142,0.14)] text-accent-dark2 text-[10.5px] font-bold px-[11px] py-1">
                     toujours actif
                   </span>
                   {/* toggle verrouillé */}
@@ -640,7 +640,7 @@ export default function LandingPage() {
               >
                 <div className="flex items-center gap-2.5">
                   <span className="text-[15px] font-semibold">Pro</span>
-                  <span className="inline-flex rounded-full bg-[rgba(63,182,183,0.14)] text-accent-dark2 text-[10.5px] font-bold px-[11px] py-1">
+                  <span className="inline-flex rounded-full bg-[rgba(91,195,142,0.14)] text-accent-dark2 text-[10.5px] font-bold px-[11px] py-1">
                     recommandé
                   </span>
                 </div>
@@ -750,7 +750,7 @@ export default function LandingPage() {
       <div
         className="bg-ink text-white"
         style={{
-          background: "radial-gradient(50% 60% at 50% 100%,rgba(63,182,183,.1),transparent 65%),#16150f",
+          background: "radial-gradient(50% 60% at 50% 100%,rgba(91,195,142,.1),transparent 65%),#16150f",
         }}
       >
         <div className="max-w-[1160px] mx-auto px-8 py-28 text-center">

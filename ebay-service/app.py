@@ -103,7 +103,19 @@ def auctions():
     max_price = _to_float(request.args.get("max_price"))
     limit = int(request.args.get("limit", 50))
     items = collector.get_auctions(q, min_price=min_price, max_price=max_price, limit=limit)
-    return jsonify({"query": q, "count": len(items), "items": [_map_summary(i) for i in items]})
+    # pertinence ANCRÉE sur le marché global : parmi les enchères seules, la
+    # camelote (pièces, stickers, pubs) peut être majoritaire — l'ancre vient
+    # de la catégorie dominante des annonces tous formats (« rolex » → Montres)
+    anchor = collector.market_anchor(q)
+    items, dominant = collector.filter_relevant(items, q, anchor_leaf=anchor)
+    return jsonify(
+        {
+            "query": q,
+            "count": len(items),
+            "dominantCategory": dominant,
+            "items": [_map_summary(i) for i in items],
+        }
+    )
 
 
 @app.get("/item/<path:item_id>")
@@ -131,6 +143,7 @@ def market_median():
             "currency": collector.currency,
             "sources": ["eBay"],
             "basis": est["basis"],  # "sold_90d" | "active_listings"
+            "dominantCategory": est.get("dominant_category"),
             "stats": stats,
             "sample_size": len(est["prices"]),
             "comparables": est["samples"],
@@ -168,6 +181,7 @@ def market_evaluate():
     result["query"] = q
     result["sources"] = ["eBay"]
     result["basis"] = est["basis"]  # "sold_90d" | "active_listings"
+    result["dominantCategory"] = est.get("dominant_category")
     result["comparables"] = est["samples"]
     return jsonify(result)
 

@@ -25,6 +25,8 @@ type EbaySummary = {
 export type MarketEvaluation = {
   status: "ok" | "no_data";
   basis?: "sold_90d" | "active_listings";
+  /** catégorie eBay dominante détectée (ex. "Montres classiques") */
+  dominantCategory?: string | null;
   median: number | null;
   low?: number;
   high?: number;

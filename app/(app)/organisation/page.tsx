@@ -28,8 +28,8 @@ type Invitation = {
 };
 
 // avatars teintés, cycle de 5 (fond / texte)
-const TINTS = ["#e8f1f1", "#eef0f3", "#fdf1e2", "#efe9fb", "#e6f6ef"];
-const TINT_TEXTS = ["#0e5a5a", "#5b616e", "#a06414", "#6b4fbb", "#059460"];
+const TINTS = ["#e4f0e7", "#eef0f3", "#fdf1e2", "#efe9fb", "#e4f0e7"];
+const TINT_TEXTS = ["#14503a", "#5b616e", "#a06414", "#6b4fbb", "#17714b"];
 
 const ROLE_BADGE: Record<ApiRole, string> = {
   owner: "bg-accent-tint text-accent-press",

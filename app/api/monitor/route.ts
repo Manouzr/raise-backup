@@ -41,6 +41,7 @@ export async function GET(req: Request): Promise<Response> {
     query: q,
     median,
     basis: evaluation?.basis ?? null, // "sold_90d" | "active_listings"
+    dominantCategory: evaluation?.dominantCategory ?? null,
     sampleSize: evaluation?.sample_size ?? 0,
     reliableRange: evaluation?.reliable_range ?? null,
     low: evaluation?.low ?? null,

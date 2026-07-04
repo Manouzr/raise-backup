@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 
 // Déconnexion depuis le panel admin : détruit la session serveur puis renvoie
 // l'opérateur sur l'écran de connexion.
 
 export function AdminLogoutButton() {
-  const router = useRouter();
   const [pending, setPending] = useState(false);
 
   const logout = async () => {
@@ -19,8 +17,8 @@ export function AdminLogoutButton() {
     } catch {
       // Même si le réseau échoue, on ramène l'opérateur sur le login.
     }
-    router.push("/login");
-    router.refresh();
+    // navigation dure : purge le cache client après destruction de session
+    window.location.assign("/login");
   };
 
   return (

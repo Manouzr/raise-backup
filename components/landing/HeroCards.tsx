@@ -58,7 +58,7 @@ export default function HeroCards() {
           </div>
           <div className="relative h-2.5 mt-[18px]">
             <div className="absolute left-0 right-0 top-px h-2 bg-dark-border rounded-full" />
-            <div className="absolute left-[44%] w-[40%] top-px h-2 rounded-full bg-[linear-gradient(90deg,rgba(63,182,183,0.3),#3fb6b7_45%,rgba(63,182,183,0.3))]" />
+            <div className="absolute left-[44%] w-[40%] top-px h-2 rounded-full bg-[linear-gradient(90deg,rgba(91,195,142,0.3),#5bc38e_45%,rgba(91,195,142,0.3))]" />
             <div className="absolute left-[11%] -top-0.5 w-[13px] h-[13px] rounded-full bg-accent-dark border-[2.5px] border-dark-card" />
           </div>
           <div className="flex items-center justify-center h-11 rounded-full bg-accent text-white text-[13.5px] font-semibold mt-[18px]">
@@ -99,7 +99,7 @@ export default function HeroCards() {
           <div className="flex items-center gap-[9px]">
             <span className="w-[26px] h-[26px] rounded-lg bg-[linear-gradient(140deg,#39404d,#12151b)]" />
             <span className="text-[11.5px] font-semibold text-[#e6e8ea]">Seiko SKX007</span>
-            <span className="ml-auto inline-flex rounded-full bg-[rgba(5,177,105,0.14)] text-[#37c98e] text-[10px] font-bold px-[9px] py-[3px]">
+            <span className="ml-auto inline-flex rounded-full bg-[rgba(5,177,105,0.14)] text-[#5bc38e] text-[10px] font-bold px-[9px] py-[3px]">
               Gagné · {euro(118)}
             </span>
           </div>

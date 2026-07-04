@@ -105,7 +105,8 @@ export default function ReglagesPage() {
     } catch {
       // on redirige quand même
     }
-    router.push("/login");
+    // navigation dure : purge le cache client après changement de session
+    window.location.assign("/login");
   };
 
   // Notifications — état local, défauts du prototype (ON / ON / OFF)

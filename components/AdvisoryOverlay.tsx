@@ -164,7 +164,7 @@ export function AdvisoryOverlay() {
                     animate={{ opacity: 1, y: 0 }}
                   >
                     <span className="text-[15px] font-bold text-up-strong">✓</span>
-                    <span className="text-[13.5px] leading-[1.4] text-[#046b46]">
+                    <span className="text-[13.5px] leading-[1.4] text-[#125a3c]">
                       <b>Tu mènes à {euro(hot.currentBid)}.</b> Je te préviens à la moindre surenchère —
                       rien d&apos;autre à faire.
                     </span>
@@ -177,7 +177,7 @@ export function AdvisoryOverlay() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
-                    <span className="flex-1 text-[13.5px] leading-[1.4] text-[#a51a26]">
+                    <span className="flex-1 text-[13.5px] leading-[1.4] text-[#9c2d24]">
                       <b>Surenchéri — quelqu&apos;un est à {euro(hot.currentBid)}.</b>
                     </span>
                     <span className="flex-none text-right">

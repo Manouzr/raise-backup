@@ -8,39 +8,43 @@
    ———————————————————————————————————————————————————————————————— */
 
 @theme {
-  /* encres & surfaces — chaudes */
-  --color-ink: #16150f;
-  --color-body: #55534b;
-  --color-muted: #8b8880;
-  --color-hairline: #e9e6df;
-  --color-app: #faf9f6;
-  --color-control: #f1efe9;
-  --color-control-hover: #e7e4dc;
+  /* encres & surfaces — ivoire de salle des ventes */
+  --color-ink: #191712;
+  --color-body: #56524a;
+  --color-muted: #8c877c;
+  --color-hairline: #e7e2d6;
+  --color-app: #f7f5ef;
+  --color-control: #efebe0;
+  --color-control-hover: #e5e0d2;
 
-  /* accent action — teal encre, avec parcimonie */
-  --color-accent: #147879;
-  --color-accent-press: #0c5b55;
-  --color-accent-tint: #e7f1ef;
-  --color-accent-disabled: #a9c6c2;
+  /* accent action — VERT MARTEAU (l'univers enchères/bonne affaire) */
+  --color-accent: #1f6b47;
+  --color-accent-press: #14503a;
+  --color-accent-tint: #e4f0e7;
+  --color-accent-disabled: #a3c4b2;
 
   /* accent sur fond sombre */
-  --color-accent-dark: #3fb6b7;
-  --color-accent-dark2: #4ec2c3;
+  --color-accent-dark: #5bc38e;
+  --color-accent-dark2: #7bd3a6;
+
+  /* laiton — marqueurs de cote, héritage maison de vente */
+  --color-brass: #a87b2f;
+  --color-brass-tint: #f4ebd9;
 
   /* sémantique (texte/teinte uniquement, jamais en fond de bouton) */
-  --color-up: #0a9a5c;
-  --color-up-strong: #067a4b;
-  --color-up-tint: #e5f3e9;
-  --color-down: #c92f39;
-  --color-down-tint: #faeceb;
-  --color-warn: #a6621a;
+  --color-up: #1f8a4c;
+  --color-up-strong: #17714b;
+  --color-up-tint: #e4f0e7;
+  --color-down: #c13a2e;
+  --color-down-tint: #faeae7;
+  --color-warn: #a87b2f;
 
-  /* sombre (sections landing / barres admin) — noir chaud */
-  --color-dark-card: #201f19;
-  --color-dark-border: #35332a;
-  --color-dark-text: #aaa79d;
-  --color-dark-input: #191813;
-  --color-dark-input-border: #3a382e;
+  /* sombre (sidebar, sections landing, CTA) — vert-noir profond */
+  --color-dark-card: #142019;
+  --color-dark-border: #2a3a2f;
+  --color-dark-text: #a9b8ac;
+  --color-dark-input: #0f1813;
+  --color-dark-input-border: #33443a;
 
   /* typo */
   --font-sans: var(--font-inter), Inter, -apple-system, system-ui, sans-serif;
@@ -48,12 +52,12 @@
   --font-mono: var(--font-jetbrains), "JetBrains Mono", monospace;
 
   /* ombres — encre chaude, très douces */
-  --shadow-soft: 0 4px 16px rgba(22, 21, 15, 0.05);
-  --shadow-card: 0 1px 2px rgba(22, 21, 15, 0.03), 0 8px 24px rgba(22, 21, 15, 0.05);
-  --shadow-pop: 0 1px 2px rgba(22, 21, 15, 0.04), 0 16px 48px rgba(22, 21, 15, 0.09);
-  --shadow-overlay: 0 32px 80px rgba(22, 21, 15, 0.28);
-  --shadow-cta: 0 8px 24px rgba(20, 120, 121, 0.28);
-  --shadow-lift: 0 16px 40px rgba(22, 21, 15, 0.1);
+  --shadow-soft: 0 4px 16px rgba(25, 23, 18, 0.05);
+  --shadow-card: 0 1px 2px rgba(25, 23, 18, 0.03), 0 8px 24px rgba(25, 23, 18, 0.05);
+  --shadow-pop: 0 1px 2px rgba(25, 23, 18, 0.04), 0 16px 48px rgba(25, 23, 18, 0.09);
+  --shadow-overlay: 0 32px 80px rgba(25, 23, 18, 0.28);
+  --shadow-cta: 0 8px 24px rgba(31, 107, 71, 0.28);
+  --shadow-lift: 0 16px 40px rgba(25, 23, 18, 0.1);
 
   /* animations */
   --animate-pulse-teal: pulseR 2.4s ease infinite;
@@ -67,14 +71,14 @@
 }
 
 @keyframes pulseR {
-  0% { box-shadow: 0 0 0 0 rgba(20, 120, 121, 0.28); }
-  70% { box-shadow: 0 0 0 11px rgba(20, 120, 121, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(20, 120, 121, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(31, 107, 71, 0.28); }
+  70% { box-shadow: 0 0 0 11px rgba(31, 107, 71, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(31, 107, 71, 0); }
 }
 @keyframes pulseRed {
-  0% { box-shadow: 0 0 0 0 rgba(201, 47, 57, 0.3); }
-  70% { box-shadow: 0 0 0 9px rgba(201, 47, 57, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(201, 47, 57, 0); }
+  0% { box-shadow: 0 0 0 0 rgba(193, 58, 46, 0.3); }
+  70% { box-shadow: 0 0 0 9px rgba(193, 58, 46, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(193, 58, 46, 0); }
 }
 @keyframes blink {
   0%, 100% { opacity: 1; }
@@ -119,7 +123,7 @@ body {
 }
 
 ::selection {
-  background: rgba(20, 120, 121, 0.18);
+  background: rgba(31, 107, 71, 0.18);
 }
 
 input {

@@ -18,6 +18,7 @@ type MonitorResult = {
   query: string;
   median: number | null;
   basis: "sold_90d" | "active_listings" | null;
+  dominantCategory: string | null;
   sampleSize: number;
   low: number | null;
   high: number | null;
@@ -195,7 +196,7 @@ export default function RadarPage() {
             </span>
           );
         })}
-        <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#c9ced6] bg-white py-1 pl-3 pr-1">
+        <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#cfc9ba] bg-white py-1 pl-3 pr-1">
           <input
             value={newType}
             onChange={(e) => setNewType(e.target.value)}
@@ -228,16 +229,37 @@ export default function RadarPage() {
         </div>
       )}
 
-      {/* grille de lots */}
-      {allLots.length > 0 && (
+      {/* opportunités d'abord : sous la cote, triées par meilleur edge */}
+      {opportunities.length > 0 && (
         <>
           <div className="overline mb-2.5 mt-[22px]">
-            {activeType ?? "Toutes catégories"} · {allLots.length} enchères actives
+            Opportunités — sous la cote · {opportunities.length}
+            {activeType && results[activeType]?.dominantCategory && (
+              <span className="ml-2 normal-case tracking-normal text-muted">
+                catégorie détectée : {results[activeType]?.dominantCategory}
+              </span>
+            )}
           </div>
           <div className="grid grid-cols-4 gap-3">
-            {allLots.map(({ lot, type }) => (
+            {opportunities.map(({ lot, type }) => (
               <LotCard key={lot.lotId} lot={lot} onOpen={() => setSelected({ lot, type })} />
             ))}
+          </div>
+        </>
+      )}
+
+      {/* le reste des enchères actives */}
+      {allLots.length > opportunities.length && (
+        <>
+          <div className="overline mb-2.5 mt-[22px]">
+            {activeType ?? "Toutes catégories"} · {allLots.length - opportunities.length} autres enchères
+          </div>
+          <div className="grid grid-cols-4 gap-3">
+            {allLots
+              .filter((r) => !r.lot.belowMarket)
+              .map(({ lot, type }) => (
+                <LotCard key={lot.lotId} lot={lot} onOpen={() => setSelected({ lot, type })} />
+              ))}
           </div>
         </>
       )}
@@ -282,14 +304,14 @@ function LotCard({ lot, onOpen }: { lot: MonitorLot; onOpen: () => void }) {
         {lot.edgePct != null && (
           <span
             className="font-mono text-[11px] font-semibold"
-            style={{ color: lot.edgePct < 0 ? "#059460" : "#7c828a" }}
+            style={{ color: lot.edgePct < 0 ? "#17714b" : "#7c828a" }}
           >
             {fmtEdge(lot.edgePct)}
           </span>
         )}
       </div>
       <div className="flex justify-between text-[10.5px] text-muted">
-        <span className="font-mono" style={{ color: closingSoon ? "#cf202f" : undefined }}>
+        <span className="font-mono" style={{ color: closingSoon ? "#c13a2e" : undefined }}>
           {lot.closesInSec > 0 ? fmtTime(lot.closesInSec) : "—"}
         </span>
         <span>{lot.bidCount > 0 ? `${lot.bidCount} ench.` : "0 ench."}</span>
@@ -349,7 +371,7 @@ function AdvisoryModal({
           <span className="text-[11px] font-bold uppercase tracking-[.07em] text-muted">eBay · {type}</span>
           <span className="flex-1" />
           {lot.closesInSec > 0 && (
-            <span className="font-mono text-lg font-semibold" style={{ color: lot.closesInSec <= 1800 ? "#cf202f" : "#0a0b0d" }}>
+            <span className="font-mono text-lg font-semibold" style={{ color: lot.closesInSec <= 1800 ? "#c13a2e" : "#0a0b0d" }}>
               {fmtTime(lot.closesInSec)}
             </span>
           )}
@@ -374,8 +396,8 @@ function AdvisoryModal({
                 <span
                   className="mb-1 inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] font-bold"
                   style={{
-                    background: lot.edgePct < 0 ? "#e6f6ef" : "#eef0f3",
-                    color: lot.edgePct < 0 ? "#059460" : "#5b616e",
+                    background: lot.edgePct < 0 ? "#e4f0e7" : "#eef0f3",
+                    color: lot.edgePct < 0 ? "#17714b" : "#5b616e",
                   }}
                 >
                   {fmtEdge(lot.edgePct)} vs cote
@@ -388,14 +410,14 @@ function AdvisoryModal({
         {/* verdict pré-filtre */}
         <div
           className="rounded-[14px] p-4"
-          style={{ background: loading ? "#f7f7f7" : worth ? "#e6f6ef" : "#f7f7f7" }}
+          style={{ background: loading ? "#f7f7f7" : worth ? "#e4f0e7" : "#f7f7f7" }}
         >
           {loading ? (
             <div className="text-[13px] text-muted">Établissement de la cote…</div>
           ) : ev && ev.median != null ? (
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-[13.5px] font-semibold" style={{ color: worth ? "#046b46" : "#0a0b0d" }}>
+                <span className="text-[13.5px] font-semibold" style={{ color: worth ? "#125a3c" : "#0a0b0d" }}>
                   {worth ? "Sous la cote, avec marge" : "Pas de marge suffisante"}
                 </span>
                 {ev.basis && (

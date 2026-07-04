@@ -8,7 +8,10 @@ utilisateur — position produit permanente.
 
 import base64
 import os
+import re
 import time
+import unicodedata
+from collections import Counter
 
 import requests
 
@@ -33,6 +36,8 @@ class EbayCollector:
         self.currency = os.getenv("EBAY_CURRENCY", "EUR")
         # cache des tokens par scope : { scope: (token, expiry_epoch) }
         self._tokens = {}
+        # cache de l'ancre de pertinence par requête : { q: (leaf, expiry) }
+        self._anchor_cache = {}
 
     def has_credentials(self):
         return bool(self.client_id and self.client_secret)
@@ -159,23 +164,32 @@ class EbayCollector:
 
     def market_estimate(self, query, condition_ids=None, days=90, limit=100):
         """Cote du marché : essaie les VENTES CONCLUES (Insights) ; si l'accès
-        n'est pas activé, retombe sur la médiane des ANNONCES ACTIVES.
+        n'est pas activé, retombe sur la médiane des ANNONCES ACTIVES — dans
+        les deux cas, filtrées par pertinence (catégorie dominante + titre).
 
-        Renvoie {basis, prices, samples} où basis ∈ {"sold_90d", "active_listings"}.
+        Renvoie {basis, prices, samples, dominant_category}.
         """
         try:
             sold = self.get_sold_items(query, condition_ids=condition_ids, days=days, limit=limit)
+            sold, dominant = self.filter_relevant(sold, query)
             prices = self.sold_prices(sold)
             if prices:
-                return {"basis": "sold_90d", "prices": prices, "samples": self.sold_samples(sold)}
+                return {
+                    "basis": "sold_90d",
+                    "prices": prices,
+                    "samples": self.sold_samples(sold),
+                    "dominant_category": dominant,
+                }
         except EbayAuthError:
             # accès Insights absent (invalid_scope / 403) → repli annonces actives
             pass
         listings = self.get_active_listings(query, limit=limit)
+        listings, dominant = self.filter_relevant(listings, query)
         return {
             "basis": "active_listings",
             "prices": self.listing_prices(listings),
             "samples": self.listing_samples(listings),
+            "dominant_category": dominant,
         }
 
     # -------------------------------------- Marketplace Insights : ventes
@@ -213,6 +227,75 @@ class EbayCollector:
                 break
             offset += page
         return all_sales[:limit]
+
+    # ------------------------------------------------- pertinence résultats
+    @staticmethod
+    def _norm(text):
+        t = unicodedata.normalize("NFD", (text or "").lower())
+        return "".join(c for c in t if not unicodedata.combining(c))
+
+    @staticmethod
+    def _leaf_category(item):
+        cats = item.get("categories") or []
+        if not cats:
+            return None
+        first = cats[0]
+        return first.get("categoryName") if isinstance(first, dict) else first
+
+    def _family_key(self, leaf):
+        toks = [t for t in re.split(r"[^a-z0-9]+", self._norm(leaf)) if len(t) >= 4]
+        return toks[0] if toks else self._norm(leaf)
+
+    def filter_relevant(self, items, query, min_keep=8, anchor_leaf=None):
+        """Ne garde que les annonces pertinentes pour la requête.
+
+        « rolex » sur eBay remonte aussi des livres, autocollants et bracelets ;
+        on (1) garde la FAMILLE de catégorie dominante — celle des résultats,
+        ou celle du marché si `anchor_leaf` est fournie (indispensable pour les
+        enchères seules, où la camelote peut être majoritaire) — puis (2) exige
+        que le titre contienne les mots de la requête, si assez de résultats
+        survivent. Renvoie (items_filtrés, catégorie_dominante).
+        """
+        if not items:
+            return items, anchor_leaf
+
+        leaves = [self._leaf_category(i) for i in items]
+        counts = Counter(leaf for leaf in leaves if leaf)
+
+        anchored = bool(anchor_leaf)
+        if anchored:
+            dominant = anchor_leaf
+        else:
+            dominant = counts.most_common(1)[0][0] if counts else None
+
+        kept = items
+        if dominant and (anchored or counts[dominant] >= max(3, len(items) // 5)):
+            fam = self._family_key(dominant)
+            kept = [i for i, leaf in zip(items, leaves) if leaf and self._family_key(leaf) == fam]
+
+        qtokens = [t for t in re.split(r"[^a-z0-9]+", self._norm(query)) if len(t) >= 3]
+        if qtokens and kept:
+            strict = [i for i in kept if all(t in self._norm(i.get("title", "")) for t in qtokens)]
+            if len(strict) >= min(min_keep, max(1, len(kept) // 2)):
+                kept = strict
+
+        # ancré : une liste vide est une VRAIE réponse (pas de lot pertinent) ;
+        # non ancré : on préfère ne rien jeter plutôt que tout jeter.
+        if not kept and not anchored:
+            kept = items
+        return kept, dominant
+
+    def market_anchor(self, query, limit=60):
+        """Catégorie feuille dominante du MARCHÉ (annonces tous formats) pour
+        une requête — l'ancre de pertinence des enchères. Cache 10 min."""
+        key = self._norm(query)
+        cached = self._anchor_cache.get(key)
+        if cached and cached[1] > time.time():
+            return cached[0]
+        listings = self.get_active_listings(query, limit=limit)
+        _, dominant = self.filter_relevant(listings, query)
+        self._anchor_cache[key] = (dominant, time.time() + 600)
+        return dominant
 
     # ------------------------------------------------------- normalisation
     @staticmethod

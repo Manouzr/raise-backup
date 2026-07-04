@@ -155,7 +155,9 @@ export default function OnboardingPage() {
         });
         setOnboarded(true);
         notify("Premier scan terminé — bonne chasse");
-        router.push("/");
+        // navigation dure : le cookie de session vient d'être posé, il faut
+        // retraverser le middleware (le cache router resservirait la landing)
+        window.location.assign("/");
         return;
       }
 

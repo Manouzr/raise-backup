@@ -42,7 +42,7 @@ export function CoteBand({
         style={{
           left: `${bandLeftPct}%`,
           width: `${bandWidthPct}%`,
-          background: "linear-gradient(90deg,rgba(20,120,121,.3),#147879 45%,rgba(20,120,121,.3))",
+          background: "linear-gradient(90deg,rgba(31,107,71,.3),#1f6b47 45%,rgba(31,107,71,.3))",
         }}
       />
       <div

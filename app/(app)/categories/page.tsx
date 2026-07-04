@@ -19,6 +19,7 @@ type MonitorResult = {
   query: string;
   median: number | null;
   basis: "sold_90d" | "active_listings" | null;
+  dominantCategory: string | null;
   sampleSize: number;
   reliableRange: [number, number] | null;
   low: number | null;
@@ -192,6 +193,11 @@ function CategoryCard({
             scan en cours…
           </span>
         )}
+        {r?.dominantCategory && (
+          <span className="inline-flex items-center rounded-full bg-brass-tint px-2.5 py-1 text-[10.5px] font-semibold text-brass">
+            {r.dominantCategory}
+          </span>
+        )}
         {r?.basis && (
           <span className="inline-flex items-center rounded-full border border-hairline bg-app px-2.5 py-1 text-[10.5px] font-medium text-muted">
             {BASIS_LABEL[r.basis] ?? r.basis}
@@ -313,7 +319,7 @@ function CategoryCard({
               }}
               aria-pressed={alertOn}
               className="relative h-[21px] w-9 flex-none rounded-full transition-colors duration-200"
-              style={{ background: alertOn ? "#147879" : "#cfccc3" }}
+              style={{ background: alertOn ? "#1f6b47" : "#cfc9ba" }}
             >
               <span
                 className="absolute top-0.5 h-[17px] w-[17px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,.25)] transition-[left] duration-200"

@@ -85,11 +85,10 @@ function LoginCard() {
       });
       if (res.ok) {
         const data = (await res.json()) as { ok: boolean; isSuperAdmin: boolean };
-        if (data.isSuperAdmin) {
-          router.push("/admin");
-        } else {
-          router.push(searchParams.get("next") ?? "/");
-        }
+        // navigation DURE (pas router.push) : le cookie de session vient
+        // d'être posé, il faut retraverser le middleware — le cache client
+        // du router resservirait la landing "anonyme" de la racine.
+        window.location.assign(data.isSuperAdmin ? "/admin" : (searchParams.get("next") ?? "/"));
         return;
       }
       // 401 → identifiants ; autres → message serveur si présent

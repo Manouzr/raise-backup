@@ -18,7 +18,7 @@ export function Toggle({ on, onToggle, label }: ToggleProps) {
       aria-label={label}
       onClick={onToggle}
       className="relative h-[21px] w-9 flex-none cursor-pointer rounded-full transition-colors duration-200"
-      style={{ background: on ? "#147879" : "#c7ccd3" }}
+      style={{ background: on ? "#1f6b47" : "#cfc9ba" }}
     >
       <span
         className="absolute top-[2px] h-[17px] w-[17px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,.25)] transition-[left] duration-200"
