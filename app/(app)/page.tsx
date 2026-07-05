@@ -14,8 +14,8 @@ import { useT } from "@/lib/i18n/provider";
 // exemple, et il peut en ajouter. Chaque lot montre son écart à la cote ; les
 // lots sous la cote sont mis en avant. Aucune enchère n'est placée : on ouvre
 // l'annonce eBay et l'humain enchérit lui-même (position produit permanente).
-// Temps réel : UNE EventSource sur /api/monitor/stream (un event `monitor`
-// par type toutes les ~25 s) ; poll de secours 45 s si le flux tombe.
+// Rafraîchissement : POLLING de /api/monitor (séquentiel, /60 s) — pas de SSE,
+// qui time-out sur serverless (Vercel) et fait boucler l'EventSource.
 
 type MonitorLot = LotEvent & { edgePct: number | null; belowMarket: boolean };
 
@@ -84,8 +84,7 @@ export default function RadarPage() {
   const [oppLimit, setOppLimit] = useState(6);
   const [showRest, setShowRest] = useState(false);
 
-  // flags hors rendu : état du flux SSE, alertes déjà émises, cloche
-  const streamDownRef = useRef(false);
+  // flags hors rendu : alertes déjà émises, cloche
   const alertedIdsRef = useRef<Set<string>>(new Set());
   const alertsOnRef = useRef(true);
 
@@ -166,41 +165,29 @@ export default function RadarPage() {
     [maxHours, maybeAlert],
   );
 
-  // au montage / ajout de type : fetch immédiat des types sans données, puis
-  // UNE EventSource pour tous les types ; poll de secours 45 s si flux en erreur
+  // POLLING (pas de SSE) — sur serverless (Vercel) un flux SSE finit par
+  // time-out, l'EventSource se reconnecte en boucle et martèle l'API eBay
+  // (429) jusqu'à faire crasher l'onglet. On interroge donc /api/monitor
+  // directement, EN SÉQUENCE (un type après l'autre, pas de rafale) et à
+  // intervalle large pour rester sous les quotas eBay.
   useEffect(() => {
-    if (!hydrated) return;
-    for (const t of types) if (!results[t]) fetchType(t);
-    if (types.length === 0) return;
+    if (!hydrated || types.length === 0) return;
+    let cancelled = false;
 
-    streamDownRef.current = false;
-    const es = new EventSource(
-      `/api/monitor/stream?types=${types.map(encodeURIComponent).join("|")}&max_hours=${maxHours}`,
-    );
-    es.addEventListener("monitor", (e) => {
-      streamDownRef.current = false;
-      try {
-        const payload = JSON.parse(e.data) as MonitorResult;
-        setResults((r) => ({ ...r, [payload.query]: { ...payload, fetchedAt: Date.now() } }));
-        maybeAlert(payload);
-      } catch {
-        // payload illisible — on attend le prochain event
+    const runOnce = async (onlyMissing: boolean) => {
+      for (const type of types) {
+        if (cancelled) return;
+        if (onlyMissing && results[type]) continue;
+        await fetchType(type);
       }
-    });
-    es.onopen = () => {
-      streamDownRef.current = false;
     };
-    es.onerror = () => {
-      // EventSource se reconnecte seul ; en attendant, le poll de secours prend le relais
-      streamDownRef.current = true;
-    };
-    const fallback = setInterval(() => {
-      if (streamDownRef.current) for (const t of types) fetchType(t);
-    }, 45_000);
+
+    void runOnce(true); // premier chargement : seulement les types sans données
+    const iv = setInterval(() => void runOnce(false), 60_000); // rafraîchit tout /60 s
 
     return () => {
-      es.close();
-      clearInterval(fallback);
+      cancelled = true;
+      clearInterval(iv);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hydrated, types.join("|"), maxHours, fetchType]);

@@ -6,7 +6,13 @@ import type { PlatformAdapter } from "./adapter";
 // Lecture seule : placeBid ne place JAMAIS d'enchère (position produit
 // permanente — l'humain enchérit lui-même sur eBay).
 
-const BASE = () => process.env.EBAY_API_URL ?? "http://localhost:5000";
+// URL du micro-service Flask. Priorité à EBAY_API_URL (défini dans les env
+// Vercel) ; à défaut, en production on vise le service déployé, en local le
+// localhost. Idéalement, définir EBAY_API_URL=https://raise-backup.vercel.app
+// dans les variables d'environnement du projet Vercel.
+const BASE = () =>
+  process.env.EBAY_API_URL ??
+  (process.env.NODE_ENV === "production" ? "https://raise-backup.vercel.app" : "http://localhost:5000");
 
 type EbaySummary = {
   itemId?: string;
