@@ -36,6 +36,6 @@ export const common = {
     vs_rating: "vs cote",
     won: "J'ai gagné l'enchère",
     lost: "J'ai perdu l'enchère",
-    footer: "Ta réponse nourrit le Journal et les prochaines suggestions.",
+    footer: "Ta réponse met à jour le Journal et les prochaines suggestions.",
   },
 } as const;

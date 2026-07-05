@@ -5,7 +5,7 @@ export const journal = {
   won: "gagnée(s)",
   learned: "appris : ",
   banner:
-    "Ces motifs sont réinjectés dans chaque advisory — « tu as tenu sous €240 la dernière fois, je suggère €220 ici ».",
+    "Ces motifs alimentent chaque advisory — tu as tenu sous €240 la dernière fois, je suggère maintenant €220.",
   badge: {
     won: "Gagné ·",
     lost: "Perdu · parti",

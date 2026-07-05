@@ -2,10 +2,12 @@ export const login = {
   headline1: "The edge,",
   headline2: "on every bid.",
   subtitle:
-    "The live market rate, the right nudge at the right moment — and you always place the bid yourself.",
+    "Live market rate, the right nudge at the right moment — and you still place the bid yourself.",
+
   card: {
     title: "Sign in",
-    subtitle: "Pick your hunt back up where you left it.",
+    subtitle: "Pick up the hunt where you left off.",
+
     email: "Email",
     password: "Password",
     signIn: "Sign in",

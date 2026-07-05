@@ -32,7 +32,7 @@ export const onboarding = {
   step2: {
     title: "Que chasses-tu ?",
     subtitle:
-      "Choisis au moins une catégorie. BidEdge en établira la cote à partir des ventes réelles.",
+      "Choisis au moins une catégorie. BidEdge en trouvera la cote à partir des ventes réelles.",
     customPlaceholder: "Autre chose ? ex. « vinyles jazz 60s »",
     add: "Ajouter",
     back: "Retour",
@@ -42,7 +42,8 @@ export const onboarding = {
   step3: {
     title: "Tes garde-fous",
     subtitle:
-      "Fixés à froid, respectés à chaud. Tu pourras les ajuster dans Réglages.",
+      "Fixe-les calmement; ils tiendront sous pression. Tu pourras les ajuster dans Réglages.",
+
     budget: "Budget mensuel d'enchères",
     ceiling: "Limite par défaut sur un nouveau lot",
     humanTitle: "Confirmation humaine avant chaque enchère",
@@ -70,7 +71,8 @@ export const onboarding = {
     scanCalibrate: "Calibration de la cote — comparaison des sources…",
     doneTitle: "Ton radar est prêt.",
     doneSubtitle:
-      "Cote établie sur {n} catégorie(s). Les lots sous la cote apparaissent déjà.",
+      "Cote établie sur {n} catégorie(s). Les lots sous la cote apparaissent maintenant.",
+
     open: "Ouvrir le radar",
     creating: "Création…",
     firstScanDone: "Premier scan terminé — bonne chasse",

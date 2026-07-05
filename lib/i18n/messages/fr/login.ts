@@ -2,10 +2,12 @@ export const login = {
   headline1: "L'avantage,",
   headline2: "à chaque enchère.",
   subtitle:
-    "La cote du marché en continu, une suggestion au bon moment — et c'est toujours toi qui enchéris.",
+    "La cote du marché en direct, la bonne suggestion au bon moment — et c'est toujours toi qui enchéris.",
+
   card: {
     title: "Connexion",
-    subtitle: "Reprends la chasse là où tu l'as laissée.",
+    subtitle: "Reprends ta chasse là où tu l'as laissée.",
+
     email: "E-mail",
     password: "Mot de passe",
     signIn: "Se connecter",

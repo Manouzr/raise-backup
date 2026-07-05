@@ -12,7 +12,8 @@ export const landing = {
     badge: "Copilote d'enchères en direct",
     title1: "L'avantage,",
     title2: "à chaque enchère.",
-    lead: "BidEdge scanne les catégories que tu chasses, établit la cote réelle du marché et te souffle la bonne enchère — juste au-dessus de l'actuelle, jamais au-dessus de ta limite.",
+    lead: "BidEdge scanne les catégories que tu chasses, trouve la cote réelle du marché et te souffle la bonne enchère — juste au-dessus de l'actuelle, jamais au-dessus de ta limite.",
+
     leadStrong: "Toi, tu tapes.",
     ctaStart: "Commencer gratuitement",
     ctaDemo: "Voir la démo ↓",
@@ -72,7 +73,8 @@ export const landing = {
     journalDesc: "Tes décisions nourrissent les suggestions suivantes. Surenchéri ? On te repropose.",
     journalQuote: "« Perdre une enchère au-dessus de la cote, c'est gagner. »",
     autobidTitle: "Jamais d'autobid",
-    autobidDesc: "BidEdge prépare la décision, tu la prends. Pas de robot qui achète à ta place ce que tu ne voulais pas.",
+    autobidDesc: "BidEdge prépare la décision, tu la prends. Aucun robot n'achète à ta place.",
+
     autobidTag: "Tu valides chaque enchère",
     autobidBadge: "toi seul",
     submodelsTitle: "Sous-modèles distingués",
@@ -152,7 +154,7 @@ export const landing = {
     },
     q4: {
       q: "Et si je me fais surenchérir ?",
-      a: "Nouvelle suggestion immédiate, tant que ça reste sous ta limite. Au-delà, BidEdge te dira de lâcher — perdre au-dessus de la cote, c'est gagner.",
+      a: "Tu reçois une nouvelle suggestion tout de suite si elle reste sous ta limite. Sinon, BidEdge te dit de lâcher prise — perdre au-dessus de la cote, c'est déjà gagner.",
     },
   },
   cta: {

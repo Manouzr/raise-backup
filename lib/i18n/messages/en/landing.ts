@@ -12,8 +12,9 @@ export const landing = {
     badge: "Live auction copilot",
     title1: "The edge,",
     title2: "on every bid.",
-    lead: "BidEdge scans the categories you hunt, sets the real market rate and whispers the right bid — just above the current one, never above your cap.",
+    lead: "BidEdge scans the categories you hunt, finds the real market value, and whispers the right bid — just above the current one, never above your cap.",
     leadStrong: "You place it.",
+
     ctaStart: "Start for free",
     ctaDemo: "See the demo ↓",
     trialPre: "Pro trial",
@@ -72,7 +73,8 @@ export const landing = {
     journalDesc: "Your decisions feed the next suggestions. Outbid? We suggest again.",
     journalQuote: "\"Losing a bid above market is winning.\"",
     autobidTitle: "Never any autobid",
-    autobidDesc: "BidEdge prepares the decision, you make it. No robot buying things you didn't want on your behalf.",
+    autobidDesc: "BidEdge prepares the decision, you make it. No robot buys anything for you.",
+
     autobidTag: "You confirm every bid",
     autobidBadge: "you alone",
     submodelsTitle: "Sub-models told apart",
@@ -152,7 +154,7 @@ export const landing = {
     },
     q4: {
       q: "What if I get outbid?",
-      a: "A new suggestion right away, as long as it stays under your cap. Beyond that, BidEdge tells you to let go — losing above market is winning.",
+      a: "You get a new suggestion right away if it still stays under your cap. If not, BidEdge says let it go — losing above market is still winning.",
     },
   },
   cta: {

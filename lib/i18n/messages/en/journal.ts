@@ -5,7 +5,7 @@ export const journal = {
   won: "won",
   learned: "learned: ",
   banner:
-    "These patterns feed back into every advisory — “you held under €240 last time, I suggest €220 here”.",
+    "These patterns feed every advisory — you held under €240 last time, so I suggest €220 now.",
   badge: {
     won: "Won ·",
     lost: "Lost · went for",

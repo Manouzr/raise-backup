@@ -32,7 +32,8 @@ export const onboarding = {
   step2: {
     title: "What are you hunting?",
     subtitle:
-      "Pick at least one category. BidEdge will set its market value from real sales.",
+      "Choose at least one category. BidEdge will estimate its market value from real sales.",
+
     customPlaceholder: 'Something else? e.g. "60s jazz vinyl"',
     add: "Add",
     back: "Back",
@@ -42,7 +43,8 @@ export const onboarding = {
   step3: {
     title: "Your guardrails",
     subtitle:
-      "Set them calmly, honored under pressure. You can adjust them in Settings.",
+      "Set them calmly; they’ll hold under pressure. You can adjust them anytime in Settings.",
+
     budget: "Monthly bidding budget",
     ceiling: "Default ceiling on a new lot",
     humanTitle: "Human confirmation before every bid",
@@ -70,7 +72,8 @@ export const onboarding = {
     scanCalibrate: "Calibrating market value — comparing sources…",
     doneTitle: "Your radar is ready.",
     doneSubtitle:
-      "Market value set across {n} categories. Lots below value are already showing up.",
+      "Market value is set across {n} categories. Lots below value are already showing up.",
+
     open: "Open the radar",
     creating: "Creating…",
     firstScanDone: "First scan complete — happy hunting",

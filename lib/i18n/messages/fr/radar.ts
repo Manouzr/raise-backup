@@ -11,9 +11,9 @@ export const radar = {
     onTitle: "Alertes activées — clique pour couper",
     offTitle: "Alertes coupées — clique pour activer",
     blockedTitle: "Notifications bloquées par le navigateur",
-    enabledBody: "Alertes actives — tu seras prévenu dès qu'un lot passe sous −{n} % de la cote.",
+    enabledBody: "Alertes actives — tu seras prévenu dès qu'un lot descend sous −{n} % de la cote.",
     enabledShort: "Alertes actives.",
-    blockedNotify: "Notifications bloquées par le navigateur — autorise-les dans les réglages du site",
+    blockedNotify: "Notifications bloquées par le navigateur — autorise-les dans tes réglages",
   },
 
   subtitle: {
@@ -46,7 +46,7 @@ export const radar = {
 
   noDeals: {
     title: "Rien sous la cote pour l'instant",
-    body: "Les {n} enchères en cours sont au prix du marché. Je te préviens dès qu'une bonne affaire sort — laisse les alertes activées.",
+    body: "Ces {n} enchères en cours sont au prix du marché. Je t'alerterai dès qu'une affaire digne d'intérêt sort — laisse les alertes activées.",
   },
 
   section: {
