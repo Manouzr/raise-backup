@@ -1,6 +1,6 @@
 export const radar = {
   title: "Radar",
-  liveBadge: "eBay en direct",
+  liveBadge: "Drouot en direct",
 
   windows: { "6h": "6 h", "24h": "24 h", "3d": "3 j" },
   windowTooltip: "Enchères qui ferment dans {window}",
@@ -19,7 +19,7 @@ export const radar = {
   subtitle: {
     dealsPrefix: "Ta meilleure affaire d'abord, puis",
     dealsSuffix: "autres sous la cote.",
-    loading: "On interroge eBay en direct…",
+    loading: "On interroge Drouot en direct…",
     watching: "Je surveille tes catégories — je te montre les affaires dès qu'elles passent sous la cote.",
   },
 
@@ -38,10 +38,10 @@ export const radar = {
   },
 
   empty: {
-    scanningTitle: "Scan des enchères eBay en cours…",
-    noneTitle: "Aucune enchère active trouvée",
-    scanningHint: "On interroge eBay pour tes types de produits — la cote et les lots arrivent.",
-    noneHint: "Ajoute un type de produit à monitorer, ou vérifie que le service eBay tourne (ebay-service).",
+    scanningTitle: "Scan des ventes Drouot en cours…",
+    noneTitle: "Aucune vente à venir trouvée",
+    scanningHint: "On interroge Drouot pour tes types de produits — la cote et les lots arrivent.",
+    noneHint: "Ajoute un type de produit à monitorer, ou vérifie que le service Drouot tourne.",
   },
 
   noDeals: {
@@ -56,7 +56,7 @@ export const radar = {
     rest: "Le reste du marché",
   },
 
-  footer: "Le scan propose, toi tu choisis — et tu places chaque enchère toi-même sur eBay. Jamais d'autobid.",
+  footer: "Le scan propose, toi tu choisis — et tu places chaque enchère toi-même sur Drouot. Jamais d'autobid.",
 
   notify: {
     belowMarket: "Sous la cote : {title} · {price} ({edge})",
@@ -100,7 +100,7 @@ export const radar = {
   },
 
   actions: {
-    openEbay: "Ouvrir sur eBay",
+    openEbay: "Ouvrir sur Drouot",
     viewDetail: "Voir le détail",
     follow: "Suivre",
   },
@@ -114,20 +114,21 @@ export const radar = {
   basis: {
     sold90d: "ventes conclues 90 j",
     activeListings: "annonces actives",
+    drouot: "estimations commissaire-priseur",
   },
 
   modal: {
     settingQuote: "Établissement de la cote…",
     basisLabel: "cote :",
     quoteUnavailable:
-      "Cote indisponible pour ce type — vérifie le service eBay, ou l'accès Marketplace Insights pour les ventes conclues.",
+      "Pas encore d'estimation commissaire-priseur pour ce type — essaie un autre type de produit ou relance le scan.",
     aiReadingTitle: "Lecture de l'annonce (IA)",
     aiReadingLoading: "Lecture de l'annonce…",
     noRedFlags: "Aucun signal d'alerte dans l'annonce.",
     confidenceLabel: "confiance",
     aiUnavailable: "Analyse IA indisponible.",
     aiAvoid: "L'IA déconseille ce lot — vérifie l'annonce avant toute enchère.",
-    selfBid: "Tu enchéris toi-même sur eBay — pas d'autobid.",
+    selfBid: "Tu enchéris toi-même sur Drouot — pas d'autobid.",
   },
 
   verdict: {

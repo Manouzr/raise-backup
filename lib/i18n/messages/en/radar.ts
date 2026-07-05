@@ -1,6 +1,6 @@
 export const radar = {
   title: "Radar",
-  liveBadge: "eBay live",
+  liveBadge: "Drouot live",
 
   windows: { "6h": "6h", "24h": "24h", "3d": "3d" },
   windowTooltip: "Auctions closing within {window}",
@@ -19,7 +19,7 @@ export const radar = {
   subtitle: {
     dealsPrefix: "Your best deal first, then",
     dealsSuffix: "others below market value.",
-    loading: "Querying eBay live…",
+    loading: "Querying Drouot live…",
     watching: "I'm watching your categories — I'll show you deals the moment they drop below market value.",
   },
 
@@ -38,10 +38,10 @@ export const radar = {
   },
 
   empty: {
-    scanningTitle: "Scanning eBay auctions…",
-    noneTitle: "No active auctions found",
-    scanningHint: "Querying eBay for your product types — market value and lots are on the way.",
-    noneHint: "Add a product type to monitor, or check that the eBay service is running (ebay-service).",
+    scanningTitle: "Scanning Drouot auctions…",
+    noneTitle: "No upcoming auctions found",
+    scanningHint: "Querying Drouot for your product types — estimates and lots are on the way.",
+    noneHint: "Add a product type to monitor, or check that the Drouot service is running.",
   },
 
   noDeals: {
@@ -56,7 +56,7 @@ export const radar = {
     rest: "The rest of the market",
   },
 
-  footer: "The scan suggests, you decide — and you place every bid yourself on eBay. Never any autobid.",
+  footer: "The scan suggests, you decide — and you place every bid yourself on Drouot. Never any autobid.",
 
   notify: {
     belowMarket: "Below market: {title} · {price} ({edge})",
@@ -100,7 +100,7 @@ export const radar = {
   },
 
   actions: {
-    openEbay: "Open on eBay",
+    openEbay: "Open on Drouot",
     viewDetail: "View details",
     follow: "Follow",
   },
@@ -114,20 +114,21 @@ export const radar = {
   basis: {
     sold90d: "sold in last 90d",
     activeListings: "active listings",
+    drouot: "auctioneer estimates",
   },
 
   modal: {
     settingQuote: "Establishing market value…",
     basisLabel: "market:",
     quoteUnavailable:
-      "No market value for this type — check the eBay service, or Marketplace Insights access for completed sales.",
+      "No auctioneer estimate for this type yet — try another product type or rescan.",
     aiReadingTitle: "Listing read (AI)",
     aiReadingLoading: "Reading the listing…",
     noRedFlags: "No red flags in the listing.",
     confidenceLabel: "confidence",
     aiUnavailable: "AI analysis unavailable.",
     aiAvoid: "AI advises against this lot — check the listing before bidding.",
-    selfBid: "You place the bid yourself on eBay — no autobid.",
+    selfBid: "You place the bid yourself on Drouot — no autobid.",
   },
 
   verdict: {

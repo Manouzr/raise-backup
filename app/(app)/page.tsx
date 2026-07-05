@@ -9,11 +9,11 @@ import { RiskBadge, confidencePct, finalMaxBid, useLotVerdict } from "@/componen
 import { useApp } from "@/lib/store";
 import { useT } from "@/lib/i18n/provider";
 
-// Radar — flux d'opportunités RÉELLES (eBay, données live via /api/monitor).
+// Radar — flux d'opportunités RÉELLES (Drouot, données live via /api/monitor).
 // L'utilisateur monitore des « types de produits » (requêtes) : montres en
 // exemple, et il peut en ajouter. Chaque lot montre son écart à la cote ; les
 // lots sous la cote sont mis en avant. Aucune enchère n'est placée : on ouvre
-// l'annonce eBay et l'humain enchérit lui-même (position produit permanente).
+// la fiche Drouot et l'humain enchérit lui-même (position produit permanente).
 // Rafraîchissement : POLLING de /api/monitor (séquentiel, /60 s) — pas de SSE,
 // qui time-out sur serverless (Vercel) et fait boucler l'EventSource.
 
@@ -33,22 +33,6 @@ type MonitorResult = {
   lots: MonitorLot[];
 };
 
-type Evaluation = {
-  status: string;
-  median: number | null;
-  low?: number;
-  high?: number;
-  reliable_range?: [number, number];
-  sample_size?: number;
-  basis?: string;
-  max_profitable_bid?: number;
-  edge_pct?: number | null;
-  is_below_market?: boolean | null;
-  worth_bidding?: boolean | null;
-  headroom?: number;
-  reason?: string;
-  comparables?: { title: string; soldPrice: number | null; date: string; source: string }[];
-};
 
 // une opportunité + la cote de son type (pour analyser l'IA en amont)
 type OppRow = { lot: MonitorLot; type: string; median: number | null; maxProfitableBid: number | null };
@@ -80,12 +64,11 @@ export default function RadarPage() {
   const [newType, setNewType] = useState("");
   const [maxHours, setMaxHours] = useState<6 | 24 | 72>(24);
   const [alertsOn, setAlertsOn] = useState(true);
-  const [selected, setSelected] = useState<{ lot: MonitorLot; type: string } | null>(null);
+  const [selected, setSelected] = useState<
+    { lot: MonitorLot; type: string; median: number | null; maxProfitableBid: number | null } | null
+  >(null);
   const [oppLimit, setOppLimit] = useState(6);
   const [showRest, setShowRest] = useState(false);
-  // source de données : eBay (Browse) ou Drouot (ventes à venir). Défaut Drouot
-  // tant que le quota eBay est épuisé.
-  const [source, setSource] = useState<"ebay" | "drouot">("drouot");
 
   // flags hors rendu : alertes déjà émises, cloche
   const alertedIdsRef = useRef<Set<string>>(new Set());
@@ -153,9 +136,7 @@ export default function RadarPage() {
     async (type: string) => {
       setLoading((l) => ({ ...l, [type]: true }));
       try {
-        const res = await fetch(
-          `/api/monitor?q=${encodeURIComponent(type)}&max_hours=${maxHours}&source=${source}`,
-        );
+        const res = await fetch(`/api/monitor?q=${encodeURIComponent(type)}&max_hours=${maxHours}`);
         if (res.ok) {
           const data = (await res.json()) as MonitorResult;
           setResults((r) => ({ ...r, [type]: { ...data, fetchedAt: Date.now() } }));
@@ -167,7 +148,7 @@ export default function RadarPage() {
         setLoading((l) => ({ ...l, [type]: false }));
       }
     },
-    [maxHours, source, maybeAlert],
+    [maxHours, maybeAlert],
   );
 
   // POLLING (pas de SSE) — sur serverless (Vercel) un flux SSE finit par
@@ -208,11 +189,11 @@ export default function RadarPage() {
     setResults({}); // fenêtre différente = lots différents — on repart à zéro
   };
 
-  const changeSource = (s: "ebay" | "drouot") => {
-    if (s === source) return;
-    setSource(s);
-    setResults({}); // source différente = lots différents
-    setActiveType(null);
+  // ouvre le détail d'un lot en emportant la cote Drouot de son type (médiane +
+  // prix max) — le modal n'a plus besoin d'appeler l'API eBay pour l'analyser.
+  const openLot = (lot: MonitorLot, type: string) => {
+    const r = results[type];
+    setSelected({ lot, type, median: r?.median ?? null, maxProfitableBid: r?.maxProfitableBid ?? null });
   };
 
   const toggleAlerts = () => {
@@ -330,20 +311,6 @@ export default function RadarPage() {
         <span className="flex-1" />
         {/* contrôles regroupés — discrets, pas des tuiles de dashboard */}
         <div className="flex items-center gap-2 text-[11.5px]">
-          {/* source des données : Drouot (défaut, eBay hors quota) ou eBay */}
-          <div className="flex items-center rounded-full bg-night-elev p-0.5">
-            {(["drouot", "ebay"] as const).map((s) => (
-              <button
-                key={s}
-                onClick={() => changeSource(s)}
-                className={`rounded-full px-2.5 py-1 font-semibold transition-colors ${
-                  source === s ? "bg-night-border2 text-white" : "text-night-dim hover:text-white"
-                }`}
-              >
-                {s === "drouot" ? "Drouot" : "eBay"}
-              </button>
-            ))}
-          </div>
           <div className="flex items-center rounded-full bg-night-elev p-0.5">
             {WINDOWS.map((w) => (
               <button
@@ -508,7 +475,7 @@ export default function RadarPage() {
       {hero && (
         <section className="mt-6">
           <div className="overline mb-3">{t("radar.section.bestNow")}</div>
-          <HeroOpportunity row={hero} onOpen={() => setSelected({ lot: hero.lot, type: hero.type })} onFollow={follow} />
+          <HeroOpportunity row={hero} onOpen={() => openLot(hero.lot, hero.type)} onFollow={follow} />
         </section>
       )}
 
@@ -522,7 +489,7 @@ export default function RadarPage() {
                 row={row}
                 autoAnalyze={i < 4}
                 index={i}
-                onOpen={() => setSelected({ lot: row.lot, type: row.type })}
+                onOpen={() => openLot(row.lot, row.type)}
               />
             ))}
           </div>
@@ -550,7 +517,7 @@ export default function RadarPage() {
           {showRest && (
             <div className="mt-3 grid grid-cols-4 gap-3">
               {restMarket.map(({ lot, type }, i) => (
-                <LotCard key={lot.lotId} lot={lot} index={i} onOpen={() => setSelected({ lot, type })} />
+                <LotCard key={lot.lotId} lot={lot} index={i} onOpen={() => openLot(lot, type)} />
               ))}
             </div>
           )}
@@ -563,7 +530,14 @@ export default function RadarPage() {
 
       <AnimatePresence>
         {selected && (
-          <AdvisoryModal lot={selected.lot} type={selected.type} onClose={() => setSelected(null)} onFollow={follow} />
+          <AdvisoryModal
+            lot={selected.lot}
+            type={selected.type}
+            median={selected.median}
+            maxProfitableBid={selected.maxProfitableBid}
+            onClose={() => setSelected(null)}
+            onFollow={follow}
+          />
         )}
       </AnimatePresence>
     </div>
@@ -861,7 +835,7 @@ function OpportunityRow({ row, autoAnalyze, index = 0, onOpen }: { row: OppRow; 
           onClick={(e) => e.stopPropagation()}
           className="flex-none rounded-full bg-night-elev px-3 py-2 text-[11.5px] font-semibold text-accent-dark transition-colors hover:bg-night-border"
         >
-          eBay →
+          Drouot →
         </a>
       )}
     </motion.div>
@@ -871,50 +845,33 @@ function OpportunityRow({ row, autoAnalyze, index = 0, onOpen }: { row: OppRow; 
 function AdvisoryModal({
   lot,
   type,
+  median,
+  maxProfitableBid,
   onClose,
   onFollow,
 }: {
   lot: MonitorLot;
   type: string;
+  median: number | null;
+  maxProfitableBid: number | null;
   onClose: () => void;
   onFollow: (lotId: string) => void;
 }) {
   const t = useT();
   const guardrails = useApp((s) => s.guardrails);
-  const [ev, setEv] = useState<Evaluation | null>(null);
-  const [loading, setLoading] = useState(true);
 
-  // libellé de la base de cote — traduit à l'usage
-  const BASIS_LABEL: Record<string, string> = {
-    sold_90d: t("radar.basis.sold90d"),
-    active_listings: t("radar.basis.activeListings"),
-  };
-
-  useEffect(() => {
-    let alive = true;
-    setLoading(true);
-    fetch(`/api/market/evaluate?q=${encodeURIComponent(type)}&current_price=${lot.currentBid}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d: Evaluation | null) => {
-        if (alive) setEv(d);
-      })
-      .catch(() => {})
-      .finally(() => alive && setLoading(false));
-    return () => {
-      alive = false;
-    };
-  }, [type, lot.currentBid]);
-
-  // analyse IA du contexte — une fois par lot, seulement si le pré-filtre
-  // valide ; le verdict IRRIGUE tout le détail (bandeau, état réel, prix max)
-  const worth = ev?.worth_bidding === true;
-  const { verdict, state: verdictState, risk } = useLotVerdict(lot.lotId, ev?.median ?? null, worth);
+  // Lot Drouot : la cote (médiane des estimations des commissaires-priseurs) et
+  // le pré-filtre « sous la cote » sont déjà calculés à la source. On lit
+  // SYSTÉMATIQUEMENT l'annonce avec l'IA (Gemini sur la description de la fiche)
+  // — l'utilisateur a ouvert le lot. Plus aucune dépendance à l'API eBay.
+  const { verdict, state: verdictState, risk } = useLotVerdict(lot.lotId, median, true);
+  const worth = lot.belowMarket;
   const withinBudget = lot.currentBid <= guardrails.defaultCeiling;
   const confPct = confidencePct(verdict);
   // prix max FINAL : le plus prudent entre marge sur cote et conseil IA
-  const maxBid = finalMaxBid(ev?.max_profitable_bid ?? null, verdict);
-  const aiAdjusted =
-    maxBid != null && ev?.max_profitable_bid != null && maxBid < Math.round(ev.max_profitable_bid);
+  const maxBid = finalMaxBid(maxProfitableBid, verdict);
+  const aiAdjusted = maxBid != null && maxProfitableBid != null && maxBid < Math.round(maxProfitableBid);
+  const estimation = lot.attributes?.["Estimation"] ?? null;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
@@ -933,7 +890,7 @@ function AdvisoryModal({
         transition={{ type: "spring", duration: 0.4, bounce: 0.22 }}
       >
         <div className="flex items-center gap-3">
-          <span className="text-[11px] font-bold uppercase tracking-[.07em] text-night-dim">eBay · {type}</span>
+          <span className="text-[11px] font-bold uppercase tracking-[.07em] text-night-dim">Drouot · {type}</span>
           <span className="flex-1" />
           {lot.closesInSec > 0 && (
             <span className="font-mono text-lg font-semibold" style={{ color: lot.closesInSec <= 1800 ? "#e3453a" : "#ffffff" }}>
@@ -979,16 +936,14 @@ function AdvisoryModal({
           </div>
         </div>
 
-        {/* verdict pré-filtre */}
+        {/* cote Drouot + décision */}
         <div
           className="rounded-[14px] border border-night-border p-4"
           style={{
-            background: loading ? "#1a1a1f" : worth ? (risk === "eviter" ? "rgba(227,69,58,0.12)" : "rgba(52,209,108,0.12)") : "#1a1a1f",
+            background: worth ? (risk === "eviter" ? "rgba(227,69,58,0.12)" : "rgba(52,209,108,0.12)") : "#1a1a1f",
           }}
         >
-          {loading ? (
-            <div className="text-[13px] text-night-dim">{t("radar.modal.settingQuote")}</div>
-          ) : ev && ev.median != null ? (
+          {median != null ? (
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span
@@ -1001,11 +956,9 @@ function AdvisoryModal({
                       : t("radar.verdict.belowMargin")
                     : t("radar.verdict.noMargin")}
                 </span>
-                {ev.basis && (
-                  <span className="inline-flex items-center rounded-full bg-night-card px-2 py-0.5 text-[10px] font-semibold text-night-dim">
-                    {t("radar.modal.basisLabel")} {BASIS_LABEL[ev.basis] ?? ev.basis}
-                  </span>
-                )}
+                <span className="inline-flex items-center rounded-full bg-night-card px-2 py-0.5 text-[10px] font-semibold text-night-dim">
+                  {t("radar.modal.basisLabel")} {t("radar.basis.drouot")}
+                </span>
                 <span
                   className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold ${
                     withinBudget ? "bg-accent/12 text-accent-dark" : "bg-night-elev text-night-dim"
@@ -1024,11 +977,11 @@ function AdvisoryModal({
               </div>
               <div className="flex flex-wrap gap-4 text-[12.5px] text-night-text">
                 <span>
-                  {t("radar.market.median")} <span className="font-mono font-semibold text-white">{euro(ev.median)}</span>
+                  {t("radar.market.median")} <span className="font-mono font-semibold text-white">{euro(median)}</span>
                 </span>
-                {ev.low != null && ev.high != null && (
+                {estimation && (
                   <span className="text-night-dim">
-                    {t("radar.market.rangeLabel")} <span className="font-mono">€{Math.round(ev.low)}–{Math.round(ev.high)}</span>
+                    {t("radar.market.rangeLabel")} <span className="font-mono">{estimation}</span>
                   </span>
                 )}
                 {maxBid != null && (
@@ -1038,11 +991,7 @@ function AdvisoryModal({
                     {aiAdjusted && <span className="text-[11px] text-night-dim"> {t("radar.market.aiAdjusted")}</span>}
                   </span>
                 )}
-                <span className="text-night-dim">
-                  <span className="font-mono">{ev.sample_size ?? 0}</span> {t("radar.market.comparables")}
-                </span>
               </div>
-              {ev.reason && <div className="text-[12.5px] leading-relaxed text-night-text">{ev.reason}</div>}
             </div>
           ) : (
             <div className="text-[13px] text-night-text">
@@ -1051,51 +1000,33 @@ function AdvisoryModal({
           )}
         </div>
 
-        {/* lecture IA de l'annonce — l'état réel et le prix max sont déjà
-            fusionnés dans le détail ci-dessus ; ici : signaux + résumé */}
-        {worth && (
-          <div className="rounded-[14px] bg-night-elev p-4">
-            <div className="overline mb-2">{t("radar.modal.aiReadingTitle")}</div>
-            {verdictState === "loading" || verdictState === "idle" ? (
-              <div className="text-[13px] text-night-dim">{t("radar.modal.aiReadingLoading")}</div>
-            ) : verdictState === "done" && verdict ? (
-              <div className="flex flex-col gap-2">
-                {verdict.redFlags.length > 0 ? (
-                  <ul className="flex flex-col gap-0.5 text-[12.5px] leading-relaxed text-warn">
-                    {verdict.redFlags.map((flag, i) => (
-                      <li key={i}>· {flag}</li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-[12.5px] text-accent-dark">{t("radar.modal.noRedFlags")}</div>
-                )}
-                {verdict.resume && <div className="text-[12.5px] leading-relaxed text-night-text">{verdict.resume}</div>}
-                {confPct != null && (
-                  <div className="text-[11.5px] text-night-dim">
-                    {t("radar.modal.confidenceLabel")} <span className="font-mono">{confPct}%</span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-[12.5px] text-night-dim">{t("radar.modal.aiUnavailable")}</div>
-            )}
-          </div>
-        )}
-
-        {/* comparables */}
-        {ev?.comparables && ev.comparables.length > 0 && (
-          <div className="flex flex-col">
-            {ev.comparables.slice(0, 4).map((c, i) => (
-              <div key={i}>
-                {i > 0 && <div className="h-px bg-night-border" />}
-                <div className="flex justify-between py-1.5 text-[12px] text-night-text">
-                  <span className="truncate pr-2">{c.title}</span>
-                  <span className="flex-none font-mono text-night-dim">{c.soldPrice != null ? euro(c.soldPrice) : "—"}</span>
+        {/* lecture IA de l'annonce — lancée d'emblée : signaux + résumé */}
+        <div className="rounded-[14px] bg-night-elev p-4">
+          <div className="overline mb-2">{t("radar.modal.aiReadingTitle")}</div>
+          {verdictState === "loading" || verdictState === "idle" ? (
+            <div className="text-[13px] text-night-dim">{t("radar.modal.aiReadingLoading")}</div>
+          ) : verdictState === "done" && verdict ? (
+            <div className="flex flex-col gap-2">
+              {verdict.redFlags.length > 0 ? (
+                <ul className="flex flex-col gap-0.5 text-[12.5px] leading-relaxed text-warn">
+                  {verdict.redFlags.map((flag, i) => (
+                    <li key={i}>· {flag}</li>
+                  ))}
+                </ul>
+              ) : (
+                <div className="text-[12.5px] text-accent-dark">{t("radar.modal.noRedFlags")}</div>
+              )}
+              {verdict.resume && <div className="text-[12.5px] leading-relaxed text-night-text">{verdict.resume}</div>}
+              {confPct != null && (
+                <div className="text-[11.5px] text-night-dim">
+                  {t("radar.modal.confidenceLabel")} <span className="font-mono">{confPct}%</span>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              )}
+            </div>
+          ) : (
+            <div className="text-[12.5px] text-night-dim">{t("radar.modal.aiUnavailable")}</div>
+          )}
+        </div>
 
         {/* actions — jamais d'enchère automatique */}
         <div className="flex items-center gap-3">
