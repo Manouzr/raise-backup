@@ -343,13 +343,13 @@ class SimEngine {
   placeUserBid(lotId: string, amount: number): { ok: true; newCurrentBid: number } | { ok: false; code: number; message: string } {
     if (lotId !== HOT_LOT_ID) {
       const def = STATIC_LOTS[lotId];
-      if (!def) return { ok: false, code: 404, message: "Lot inconnu" };
-      return { ok: false, code: 409, message: "Ce lot n'est pas encore ouvert aux suggestions" };
+      if (!def) return { ok: false, code: 404, message: "Unknown lot" };
+      return { ok: false, code: 409, message: "This lot isn't open for suggestions yet" };
     }
     const h = this.hot;
-    if (h.phase !== "live") return { ok: false, code: 409, message: "L'enchère est terminée" };
+    if (h.phase !== "live") return { ok: false, code: 409, message: "This auction has ended" };
     if (amount <= h.currentBid) {
-      return { ok: false, code: 409, message: `L'enchère courante est déjà à €${h.currentBid}` };
+      return { ok: false, code: 409, message: `The current bid is already €${h.currentBid}` };
     }
     // Garde-fou serveur : le CTA ne propose jamais autre chose que le tick
     // suivant — toute requête au-delà (curl, client altéré) est refusée pour

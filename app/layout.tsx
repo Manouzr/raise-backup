@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { getLocale } from "@/lib/i18n/server";
+import { messages } from "@/lib/i18n/messages";
+import { I18nProvider } from "@/lib/i18n/provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -24,16 +27,19 @@ const jetbrains = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BidEdge — L'avantage, à chaque enchère.",
+  title: "BidEdge — The edge, on every bid.",
   description:
-    "BidEdge scanne les catégories que tu chasses, établit la cote réelle du marché et te souffle la bonne enchère. Toi, tu tapes. Jamais d'autobid.",
+    "BidEdge scans the categories you hunt, sets the real market rate and whispers you the right bid. You place it. Never any autobidding.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const locale = await getLocale();
   return (
-    <html lang="fr">
+    <html lang={locale}>
       <body className={`${inter.variable} ${fraunces.variable} ${jetbrains.variable} font-sans antialiased`}>
-        {children}
+        <I18nProvider locale={locale} messages={messages[locale]}>
+          {children}
+        </I18nProvider>
       </body>
     </html>
   );

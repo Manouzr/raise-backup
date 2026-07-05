@@ -1,30 +1,29 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
 import { useApp } from "@/lib/store";
+import { useT } from "@/lib/i18n/provider";
 import { Toast } from "@/components/Toast";
+import { GhostCursor } from "@/components/landing/nexus/GhostCursor";
 
 // Onboarding 5 étapes — hors du layout (app) : hydrate() au mount, <Toast /> monté ici.
-// Rail clair à gauche (progression), cartes blanches animées à droite.
+// DA « Nuit » (sombre premium, cohérente avec la landing) : rail sombre à gauche
+// (progression), cartes night-card animées à droite sur un fond à lueur verte.
+//
+// LE CLOU : un CURSEUR FANTÔME (GhostCursor, réutilisé depuis la landing) joue une
+// démo humaine tant que l'utilisateur n'a pas touché le formulaire. Il remplit le
+// compte, passe à l'étape 2 et TAPE « nintendo switch » dans le champ catégorie,
+// puis boucle. Il ne crée JAMAIS de compte (jamais finish(), jamais l'étape 5).
 
 type Cat = { name: string; on: boolean };
 
-const INITIAL_CATS: Cat[] = [
-  { name: "Montres vintage", on: true },
-  { name: "RAM & composants", on: true },
-  { name: "GPU & hardware", on: false },
-  { name: "Game Boy & rétro", on: false },
-  { name: "Claviers mécaniques", on: false },
-  { name: "Objectifs photo", on: false },
-];
-
 const RAIL_STEPS = [
-  { n: 1, label: "Compte" },
-  { n: 2, label: "Catégories" },
-  { n: 3, label: "Garde-fous" },
-  { n: 4, label: "Plateformes" },
+  { n: 1, key: "account" },
+  { n: 2, key: "categories" },
+  { n: 3, key: "guardrails" },
+  { n: 4, key: "platforms" },
 ];
 
 const PLATFORMS = [
@@ -45,11 +44,23 @@ const EASE: [number, number, number, number] = [0.2, 0.9, 0.3, 1];
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const t = useT();
   const hydrate = useApp((s) => s.hydrate);
   const notify = useApp((s) => s.notify);
   const setCategories = useApp((s) => s.setCategories);
   const setGuardrails = useApp((s) => s.setGuardrails);
   const setOnboarded = useApp((s) => s.setOnboarded);
+
+  // Catégories initiales — construites via t() pour rester traduites (l'exemple
+  // « nintendo switch » tapé par le curseur reste littéral, lui, plus bas).
+  const initialCats: Cat[] = [
+    { name: t("onboarding.cats.watches"), on: true },
+    { name: t("onboarding.cats.ram"), on: true },
+    { name: t("onboarding.cats.gpu"), on: false },
+    { name: t("onboarding.cats.gameboy"), on: false },
+    { name: t("onboarding.cats.keyboards"), on: false },
+    { name: t("onboarding.cats.lenses"), on: false },
+  ];
 
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
@@ -57,7 +68,7 @@ export default function OnboardingPage() {
   const [pass, setPass] = useState("");
   const [err, setErr] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [cats, setCats] = useState<Cat[]>(INITIAL_CATS);
+  const [cats, setCats] = useState<Cat[]>(initialCats);
   const [custom, setCustom] = useState("");
   const [budget, setBudget] = useState("€ 600");
   const [ceiling, setCeiling] = useState("€ 150");
@@ -96,21 +107,21 @@ export default function OnboardingPage() {
       // La création réelle du compte se fait à la dernière étape (atomique) —
       // ici on valide juste de quoi éviter un aller-retour à la fin.
       if (!name.trim()) {
-        setErr("Indique ton prénom.");
+        setErr(t("onboarding.step1.errName"));
         return;
       }
       if (!mail.includes("@")) {
-        setErr("E-mail invalide.");
+        setErr(t("onboarding.step1.errEmail"));
         return;
       }
       if (pass.length < 6) {
-        setErr("Mot de passe : 6 caractères minimum.");
+        setErr(t("onboarding.step1.errPassword"));
         return;
       }
       setErr(null);
     }
     if (step === 2 && picked.length === 0) {
-      notify("Choisis au moins une catégorie");
+      notify(t("onboarding.step2.pickOne"));
       return;
     }
     if (step === 4) setScan(0);
@@ -121,7 +132,7 @@ export default function OnboardingPage() {
 
   const connect = (id: PlatformId) => {
     setPlat((p) => ({ ...p, [id]: true }));
-    if (id === "drouot") notify("Drouot connecté via son API officielle");
+    if (id === "drouot") notify(t("onboarding.step4.drouotNotify"));
   };
 
   const finish = async () => {
@@ -154,7 +165,7 @@ export default function OnboardingPage() {
           ...(l !== null ? { defaultCeiling: l } : {}),
         });
         setOnboarded(true);
-        notify("Premier scan terminé — bonne chasse");
+        notify(t("onboarding.step5.firstScanDone"));
         // navigation dure : le cookie de session vient d'être posé, il faut
         // retraverser le middleware (le cache router resservirait la landing)
         window.location.assign("/");
@@ -163,14 +174,14 @@ export default function OnboardingPage() {
 
       if (res.status === 409) {
         // e-mail déjà pris → retour à l'étape 1, erreur inline
-        setErr("Un compte existe déjà avec cet e-mail.");
+        setErr(t("onboarding.errors.accountExists"));
         setStep(1);
         setSubmitting(false);
         return;
       }
 
       // 422 (ou autre) → on affiche le message renvoyé par le serveur
-      let message = "Impossible de créer le compte. Vérifie tes informations.";
+      let message = t("onboarding.errors.createFailed");
       try {
         const data = (await res.json()) as { error?: { message?: string } };
         if (data.error?.message) message = data.error.message;
@@ -180,7 +191,7 @@ export default function OnboardingPage() {
       notify(message);
       setSubmitting(false);
     } catch {
-      notify("Création impossible. Réessaie dans un instant.");
+      notify(t("onboarding.errors.createRetry"));
       setSubmitting(false);
     }
   };
@@ -188,12 +199,165 @@ export default function OnboardingPage() {
   const pct = `${Math.round(scan)}%`;
   const scanLabel =
     scan < 35
-      ? `Collecte des ventes passées sur ${picked.length} catégorie(s)…`
+      ? t("onboarding.step5.scanPast", { n: picked.length })
       : scan < 75
-        ? "Recherche live des annonces en cours…"
-        : "Calibration de la cote — comparaison des sources…";
+        ? t("onboarding.step5.scanLive")
+        : t("onboarding.step5.scanCalibrate");
 
-  const cardBase = "max-w-full flex flex-col rounded-card border border-hairline bg-white shadow-pop";
+  /* ————————————————————————————————————————————————————————————————
+     CURSEUR FANTÔME — démo auto-jouée (hand-off au 1er geste réel)
+     ———————————————————————————————————————————————————————————————— */
+  const mockRef = useRef<HTMLDivElement>(null); // conteneur relative → repère des coords
+  const nameRef = useRef<HTMLInputElement>(null);
+  const mailRef = useRef<HTMLInputElement>(null);
+  const passRef = useRef<HTMLInputElement>(null);
+  const continueRef = useRef<HTMLButtonElement>(null);
+  const customRef = useRef<HTMLInputElement>(null);
+  const addRef = useRef<HTMLButtonElement>(null);
+
+  const [pos, setPos] = useState({ x: 46, y: 34 });
+  const [clicking, setClicking] = useState(false);
+  const [clickKey, setClickKey] = useState(0);
+  const [caption, setCaption] = useState<string | null>(null);
+  const [userTook, setUserTook] = useState(false);
+  const userTookRef = useRef(false);
+
+  // handlers frais pour la démo (évite les closures périmées de l'effet mount-only)
+  const demoApi = useRef({ next, addCustom });
+  demoApi.current = { next, addCustom };
+
+  // HAND-OFF : au 1er vrai geste, on tue la démo et on repart d'un formulaire vierge.
+  const takeOver = () => {
+    if (userTookRef.current) return;
+    userTookRef.current = true;
+    setUserTook(true);
+    setCaption(null);
+    setClicking(false);
+    setStep(1);
+    setName("");
+    setMail("");
+    setPass("");
+    setCustom("");
+    setCats(initialCats.map((c) => ({ ...c })));
+    setErr(null);
+    setScan(0);
+  };
+
+  useEffect(() => {
+    let alive = true;
+    const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    const guard = () => alive && !userTookRef.current;
+
+    // centre d'une cible relativement au conteneur mockRef (recalculé à chaque appel,
+    // car les cibles changent selon l'étape montée).
+    const centerOf = (el: HTMLElement | null) => {
+      const box = mockRef.current?.getBoundingClientRect();
+      const r = el?.getBoundingClientRect();
+      if (!box || !r) return null;
+      return { x: r.left - box.left + r.width / 2, y: r.top - box.top + r.height / 2 };
+    };
+
+    const moveTo = async (el: HTMLElement | null, travel: number) => {
+      if (!guard()) return false;
+      const c = centerOf(el);
+      if (c) setPos(c);
+      await sleep(travel); // trajet (spring dans GhostCursor)
+      return guard();
+    };
+
+    const clickEl = async (el: HTMLElement | null) => {
+      if (!guard()) return false;
+      const c = centerOf(el);
+      if (c) setPos(c);
+      await sleep(480); // approche
+      if (!guard()) return false;
+      setClicking(true);
+      setClickKey((k) => k + 1);
+      await sleep(250);
+      setClicking(false);
+      await sleep(170);
+      return guard();
+    };
+
+    // typewriter : « tape » caractère par caractère via un setter React.
+    const typeInto = async (
+      setter: (v: string) => void,
+      text: string,
+      speed: number,
+    ) => {
+      for (let i = 1; i <= text.length; i++) {
+        if (!guard()) return false;
+        setter(text.slice(0, i));
+        await sleep(speed);
+      }
+      return guard();
+    };
+
+    async function run() {
+      await sleep(1100); // laisse l'entrée de la carte se poser
+
+      while (guard()) {
+        /* ————— ÉTAPE 1 : on crée le compte ————— */
+        setCaption(t("onboarding.cursor.creatingAccount"));
+        if (!(await moveTo(nameRef.current, 820))) return;
+        if (!(await typeInto(setName, "Manou", 95))) return;
+        await sleep(220);
+
+        setCaption(t("onboarding.cursor.email"));
+        if (!(await moveTo(mailRef.current, 680))) return;
+        if (!(await typeInto(setMail, "manou@exemple.fr", 52))) return;
+        await sleep(200);
+
+        if (!(await moveTo(passRef.current, 620))) return;
+        if (!(await typeInto(setPass, "bidedge", 70))) return;
+        await sleep(220);
+
+        setCaption(t("onboarding.cursor.offWeGo"));
+        if (!(await clickEl(continueRef.current))) return;
+        if (!guard()) return;
+        demoApi.current.next(); // validation réelle → passe à l'étape 2
+        await sleep(760); // laisse l'AnimatePresence monter la carte 2
+
+        /* ————— ÉTAPE 2 : on tape la catégorie ————— */
+        if (!guard()) return;
+        setCaption(t("onboarding.cursor.typingCategory"));
+        if (!(await moveTo(customRef.current, 820))) return;
+
+        // valeur d'exemple tapée dans le champ — reste littérale (produit, pas UI)
+        setCaption(t("onboarding.cursor.exampleProduct"));
+        if (!(await typeInto(setCustom, "nintendo switch", 55))) return;
+        await sleep(320);
+
+        setCaption(t("onboarding.cursor.added"));
+        if (!(await clickEl(addRef.current))) return;
+        if (!guard()) return;
+        demoApi.current.addCustom();
+        await sleep(1150);
+
+        /* ————— RESET propre (jamais au-delà de l'étape 2, jamais finish) ————— */
+        if (!guard()) return;
+        setCaption(null);
+        setClicking(false);
+        setName("");
+        setMail("");
+        setPass("");
+        setCustom("");
+        setCats(initialCats.map((c) => ({ ...c })));
+        setErr(null);
+        setStep(1);
+        await sleep(820); // laisse la carte 1 se remonter avant de re-mesurer
+      }
+    }
+
+    run();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const cardBase =
+    "max-w-full flex flex-col rounded-card border border-night-border bg-night-card shadow-[0_28px_70px_rgba(0,0,0,0.55)]";
   const cardBySteps: Record<number, string> = {
     1: `${cardBase} w-[520px] gap-[14px] p-[34px]`,
     2: `${cardBase} w-[560px] gap-4 p-[34px]`,
@@ -202,349 +366,387 @@ export default function OnboardingPage() {
     5: `${cardBase} w-[520px] gap-4 p-[38px] text-center`,
   };
 
+  const inputCls =
+    "h-[46px] rounded-xl border border-night-border bg-night-elev px-4 text-sm text-white placeholder:text-night-dim outline-none transition-colors focus:border-night-border2";
+  const ctaCls =
+    "shimmer-btn flex h-12 cursor-pointer items-center justify-center rounded-full bg-accent-dark text-[14.5px] font-semibold text-night shadow-[0_10px_30px_rgba(52,209,108,0.25)] transition-colors hover:bg-accent-dark2";
+  const secondaryCls =
+    "inline-flex h-[46px] cursor-pointer items-center rounded-full border border-night-border bg-night-elev px-5 text-[13.5px] font-semibold text-night-text transition-colors hover:border-night-border2 hover:bg-night-border hover:text-white";
+
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Rail clair — progression */}
-      <div className="flex w-[300px] flex-none flex-col border-r border-hairline bg-white px-7 py-8">
-        <div className="headline text-[20px] text-ink">
-          Bid<span className="text-accent-press">Edge</span>
+    <div className="flex h-screen overflow-hidden bg-night text-night-text">
+      {/* ————— Rail sombre — progression ————— */}
+      <div className="relative flex w-[300px] flex-none flex-col overflow-hidden border-r border-night-border bg-night-2 px-7 py-8">
+        <div
+          className="pointer-events-none absolute -left-16 top-24 h-[320px] w-[320px] rounded-full bg-accent/10 blur-[120px]"
+          aria-hidden
+        />
+        <div className="headline relative text-[20px] text-white">
+          Bid<span className="text-accent-dark">Edge</span>
         </div>
-        <div className="mt-[44px] flex flex-col gap-[22px]">
-          {RAIL_STEPS.map((st) => {
+        <div className="relative mt-[44px] flex flex-col gap-[22px]">
+          {RAIL_STEPS.map((st, i) => {
             const done = step > st.n || step === 5;
             const cur = step === st.n;
             return (
-              <div key={st.n} className="flex items-center gap-[13px]">
+              <motion.div
+                key={st.n}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.4, delay: 0.1 + i * 0.06, ease: EASE }}
+                className="flex items-center gap-[13px]"
+              >
                 <span
-                  className={`flex h-7 w-7 flex-none items-center justify-center rounded-full text-xs font-bold ${
+                  className={`flex h-7 w-7 flex-none items-center justify-center rounded-full text-xs font-bold transition-colors ${
                     done
-                      ? "border border-accent bg-accent text-white"
+                      ? "bg-accent-dark text-night"
                       : cur
-                        ? "border border-accent bg-accent text-white shadow-cta"
-                        : "border border-hairline bg-white text-muted"
+                        ? "bg-accent-dark text-night shadow-[0_0_0_4px_rgba(52,209,108,0.14)]"
+                        : "border border-night-border bg-night-elev text-night-dim"
                   }`}
                 >
                   {done ? "✓" : st.n}
                 </span>
                 <span
-                  className={`text-[13.5px] font-semibold ${done || cur ? "text-ink" : "text-muted"}`}
+                  className={`text-[13.5px] font-semibold transition-colors ${
+                    done || cur ? "text-white" : "text-night-dim"
+                  }`}
                 >
-                  {st.label}
+                  {t(`onboarding.rail.${st.key}`)}
                 </span>
-              </div>
+              </motion.div>
             );
           })}
         </div>
         <div className="flex-1" />
-        <div className="text-xs leading-[1.5] text-muted">
-          Essai Pro 14 jours, sans carte.
+        <div className="relative text-xs leading-[1.5] text-night-dim">
+          {t("onboarding.rail.trialPre")} <span className="font-mono">14</span>{" "}
+          {t("onboarding.rail.trialPost")}
           <br />
-          Enchères via les API officielles — jamais de bot.
+          {t("onboarding.rail.footer")}
         </div>
       </div>
 
-      {/* Zone claire — cartes d'étape */}
-      <div className="flex min-w-0 flex-1 items-center justify-center overflow-y-auto bg-app p-8">
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={step}
-            initial={{ opacity: 0, y: 20, scale: 0.96 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -12, scale: 0.98 }}
-            transition={{ duration: 0.35, ease: EASE }}
-            className={cardBySteps[step]}
-          >
-            {step === 1 && (
-              <>
-                <div className="headline text-[28px] text-ink">
-                  Crée ton compte
-                </div>
-                <div className="-mt-[6px] text-[13.5px] text-body">
-                  Deux minutes, et ton radar commence à chasser.
-                </div>
-                <input
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (err) setErr(null);
-                  }}
-                  placeholder="Prénom"
-                  className="h-[46px] rounded-xl border border-hairline bg-white px-4 text-sm"
-                />
-                <input
-                  value={mail}
-                  onChange={(e) => {
-                    setMail(e.target.value);
-                    if (err) setErr(null);
-                  }}
-                  placeholder="E-mail"
-                  type="email"
-                  autoComplete="email"
-                  className="h-[46px] rounded-xl border border-hairline bg-white px-4 text-sm"
-                />
-                <input
-                  value={pass}
-                  onChange={(e) => {
-                    setPass(e.target.value);
-                    if (err) setErr(null);
-                  }}
-                  placeholder="Mot de passe"
-                  type="password"
-                  autoComplete="new-password"
-                  className="h-[46px] rounded-xl border border-hairline bg-white px-4 text-sm"
-                />
-                {err && <div className="-mt-1 text-[13px] leading-snug text-down">{err}</div>}
-                <motion.button
-                  whileTap={{ scale: 0.97 }}
-                  onClick={next}
-                  className="mt-1 flex h-12 cursor-pointer items-center justify-center rounded-full bg-accent text-[14.5px] font-semibold text-white transition-colors hover:bg-accent-press"
-                >
-                  Continuer
-                </motion.button>
-                <div className="text-center text-[13px] text-body">
-                  Déjà un compte ?{" "}
-                  <button
-                    onClick={() => router.push("/login")}
-                    className="cursor-pointer font-semibold text-accent transition-colors hover:text-accent-press"
-                  >
-                    Se connecter
-                  </button>
-                </div>
-              </>
-            )}
+      {/* ————— Zone sombre premium — cartes d'étape + curseur fantôme ————— */}
+      <div className="relative flex min-w-0 flex-1 items-center justify-center overflow-hidden p-8">
+        {/* fond : dégradé + grille + lueur verte (comme le Hero) */}
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-night via-night to-night-2" />
+        <div className="bg-grid pointer-events-none absolute inset-0 [mask-image:radial-gradient(ellipse_62%_55%_at_50%_35%,black,transparent)]" />
+        <div className="blob-drift pointer-events-none absolute left-1/2 top-[22%] h-[440px] w-[600px] -translate-x-1/2 rounded-full bg-accent/10 blur-[130px]" />
 
-            {step === 2 && (
-              <>
-                <div className="headline text-[28px] text-ink">
-                  Que chasses-tu ?
-                </div>
-                <div className="-mt-2 text-[13.5px] text-body">
-                  Choisis au moins une catégorie. BidEdge en établira la cote à partir des ventes
-                  réelles.
-                </div>
-                <div className="flex flex-wrap gap-[9px]">
-                  {cats.map((c, i) => (
-                    <button
-                      key={c.name}
-                      onClick={() => toggleCat(i)}
-                      className={`inline-flex cursor-pointer items-center gap-[7px] rounded-full border-[1.5px] px-4 py-[9px] text-[13px] font-semibold transition-colors ${
-                        c.on
-                          ? "border-accent bg-accent-tint text-accent-press"
-                          : "border-hairline bg-white text-body"
-                      }`}
-                    >
-                      <span>{c.on ? "✓" : "+"}</span> {c.name}
-                    </button>
-                  ))}
-                </div>
-                <div className="flex gap-[9px]">
+        {/* conteneur RELATIVE : porte le curseur (absolute) — hand-off au 1er geste réel */}
+        <div
+          ref={mockRef}
+          onPointerDownCapture={takeOver}
+          onFocusCapture={takeOver}
+          onKeyDownCapture={takeOver}
+          className="relative z-10"
+        >
+          {!userTook && (
+            <GhostCursor
+              x={pos.x}
+              y={pos.y}
+              clicking={clicking}
+              caption={caption}
+              clickKey={clickKey}
+            />
+          )}
+
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step}
+              initial={{ opacity: 0, y: 22, scale: 0.965 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -14, scale: 0.98 }}
+              transition={{ duration: 0.4, ease: EASE }}
+              className={cardBySteps[step]}
+            >
+              {step === 1 && (
+                <>
+                  <div className="headline text-[28px] text-white">
+                    {t("onboarding.step1.title")}
+                  </div>
+                  <div className="-mt-[6px] text-[13.5px] text-night-text">
+                    {t("onboarding.step1.subtitle")}
+                  </div>
                   <input
-                    value={custom}
-                    onChange={(e) => setCustom(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") addCustom();
+                    ref={nameRef}
+                    value={name}
+                    onChange={(e) => {
+                      setName(e.target.value);
+                      if (err) setErr(null);
                     }}
-                    placeholder="Autre chose ? ex. « vinyles jazz 60s »"
-                    className="h-[42px] flex-1 rounded-full border border-hairline bg-white px-[17px] text-[13px]"
+                    placeholder={t("onboarding.step1.firstName")}
+                    className={inputCls}
                   />
-                  <button
-                    onClick={addCustom}
-                    className="inline-flex h-[42px] cursor-pointer items-center rounded-full bg-control px-[17px] text-[13px] font-semibold transition-colors hover:bg-control-hover"
-                  >
-                    Ajouter
-                  </button>
-                </div>
-                <div className="mt-1 flex items-center gap-3">
-                  <button
-                    onClick={back}
-                    className="inline-flex h-[46px] cursor-pointer items-center rounded-full bg-control px-5 text-[13.5px] font-semibold transition-colors hover:bg-control-hover"
-                  >
-                    Retour
-                  </button>
-                  <span className="flex-1" />
+                  <input
+                    ref={mailRef}
+                    value={mail}
+                    onChange={(e) => {
+                      setMail(e.target.value);
+                      if (err) setErr(null);
+                    }}
+                    placeholder={t("onboarding.step1.email")}
+                    type="email"
+                    autoComplete="email"
+                    className={inputCls}
+                  />
+                  <input
+                    ref={passRef}
+                    value={pass}
+                    onChange={(e) => {
+                      setPass(e.target.value);
+                      if (err) setErr(null);
+                    }}
+                    placeholder={t("onboarding.step1.password")}
+                    type="password"
+                    autoComplete="new-password"
+                    className={inputCls}
+                  />
+                  {err && <div className="-mt-1 text-[13px] leading-snug text-down">{err}</div>}
                   <motion.button
+                    ref={continueRef}
                     whileTap={{ scale: 0.97 }}
                     onClick={next}
-                    className={`inline-flex h-12 cursor-pointer items-center rounded-full px-6 text-[14.5px] font-semibold text-white transition-colors ${
-                      picked.length === 0
-                        ? "bg-accent-disabled"
-                        : "bg-accent hover:bg-accent-press"
-                    }`}
+                    className={`mt-1 ${ctaCls}`}
                   >
-                    {`Continuer · ${picked.length} catégorie(s)`}
+                    {t("onboarding.step1.continue")}
                   </motion.button>
-                </div>
-              </>
-            )}
-
-            {step === 3 && (
-              <>
-                <div className="headline text-[28px] text-ink">
-                  Tes garde-fous
-                </div>
-                <div className="mb-3 mt-[2px] text-[13.5px] text-body">
-                  Fixés à froid, respectés à chaud. Tu pourras les ajuster dans Réglages.
-                </div>
-                <div className="flex items-center justify-between py-[11px] text-[13.5px]">
-                  <span>Budget mensuel d&apos;enchères</span>
-                  <input
-                    value={budget}
-                    onChange={(e) => setBudget(e.target.value)}
-                    className="h-10 w-[120px] rounded-full border border-hairline bg-white px-[14px] text-center font-mono text-[13px]"
-                  />
-                </div>
-                <div className="h-px bg-control" />
-                <div className="flex items-center justify-between py-[11px] text-[13.5px]">
-                  <span>Limite par défaut sur un nouveau lot</span>
-                  <input
-                    value={ceiling}
-                    onChange={(e) => setCeiling(e.target.value)}
-                    className="h-10 w-[120px] rounded-full border border-hairline bg-white px-[14px] text-center font-mono text-[13px]"
-                  />
-                </div>
-                <div className="h-px bg-control" />
-                <div className="flex items-center justify-between gap-[14px] py-[13px] text-[13.5px]">
-                  <span className="flex flex-col gap-[3px]">
-                    <span className="font-semibold">Confirmation humaine avant chaque enchère</span>
-                    <span className="text-xs text-muted">
-                      BidEdge n&apos;enchérit jamais seul — ce garde-fou est permanent.
-                    </span>
-                  </span>
-                  <span className="flex items-center gap-[9px]">
-                    <span className="inline-flex items-center rounded-full bg-accent-tint px-[10px] py-[3px] text-[10.5px] font-bold text-accent-press">
-                      toujours actif
-                    </span>
+                  <div className="text-center text-[13px] text-night-text">
+                    {t("onboarding.step1.haveAccount")}{" "}
                     <button
-                      onClick={() =>
-                        notify("Ce garde-fou est permanent — humain dans la boucle, toujours.")
-                      }
-                      aria-label="Confirmation humaine — toujours active"
-                      className="relative h-[21px] w-9 flex-none cursor-default rounded-full bg-accent opacity-55"
+                      onClick={() => router.push("/login")}
+                      className="cursor-pointer font-semibold text-accent-dark transition-colors hover:text-accent-dark2"
                     >
-                      <span className="absolute left-[17px] top-[2px] h-[17px] w-[17px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,.25)]" />
+                      {t("onboarding.step1.login")}
                     </button>
-                  </span>
-                </div>
-                <div className="mt-[10px] flex items-center gap-3">
-                  <button
-                    onClick={back}
-                    className="inline-flex h-[46px] cursor-pointer items-center rounded-full bg-control px-5 text-[13.5px] font-semibold transition-colors hover:bg-control-hover"
-                  >
-                    Retour
-                  </button>
-                  <span className="flex-1" />
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={next}
-                    className="inline-flex h-12 cursor-pointer items-center rounded-full bg-accent px-6 text-[14.5px] font-semibold text-white transition-colors hover:bg-accent-press"
-                  >
-                    Continuer
-                  </motion.button>
-                </div>
-              </>
-            )}
-
-            {step === 4 && (
-              <>
-                <div className="headline text-[28px] text-ink">
-                  Connecte tes plateformes
-                </div>
-                <div className="mb-3 mt-[2px] text-[13.5px] text-body">
-                  Via leurs API officielles. Sans connexion, BidEdge suggère — et tu places
-                  l&apos;enchère toi-même.
-                </div>
-                {PLATFORMS.map((p, i) => (
-                  <div key={p.id}>
-                    {i > 0 && <div className="h-px bg-control" />}
-                    <div className="flex items-center gap-3 py-[10px] text-[13.5px]">
-                      <span className="flex h-8 w-8 items-center justify-center rounded-[9px] bg-control text-[11px] font-bold text-body">
-                        {p.ini}
-                      </span>
-                      <span className="font-semibold">{p.name}</span>
-                      <span className="flex-1" />
-                      {plat[p.id] ? (
-                        <span className="inline-flex items-center rounded-full bg-up-tint px-[13px] py-[5px] text-[11.5px] font-bold text-up-strong">
-                          Connecté
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => connect(p.id)}
-                          className="inline-flex h-9 cursor-pointer items-center rounded-full bg-control px-4 text-[12.5px] font-semibold transition-colors hover:bg-control-hover"
-                        >
-                          Connecter
-                        </button>
-                      )}
-                    </div>
                   </div>
-                ))}
-                <div className="mt-[14px] flex items-center gap-3">
-                  <button
-                    onClick={back}
-                    className="inline-flex h-[46px] cursor-pointer items-center rounded-full bg-control px-5 text-[13.5px] font-semibold transition-colors hover:bg-control-hover"
-                  >
-                    Retour
-                  </button>
-                  <span className="flex-1" />
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={next}
-                    className="inline-flex h-12 cursor-pointer items-center rounded-full bg-accent px-6 text-[14.5px] font-semibold text-white shadow-cta transition-colors hover:bg-accent-press"
-                  >
-                    Lancer le premier scan
-                  </motion.button>
-                </div>
-              </>
-            )}
-
-            {step === 5 &&
-              (scan < 100 ? (
-                <>
-                  <div className="headline text-[28px] text-ink">
-                    On établit ta cote…
-                  </div>
-                  <div className="-mt-2 text-[13.5px] text-body">{scanLabel}</div>
-                  <div className="mt-[10px] h-[10px] overflow-hidden rounded-full bg-hairline">
-                    <div
-                      className="h-full rounded-full bg-accent"
-                      style={{ width: pct, transition: "width 1s linear" }}
-                    />
-                  </div>
-                  <div className="font-mono text-[13px] text-muted">{pct}</div>
                 </>
-              ) : (
+              )}
+
+              {step === 2 && (
                 <>
-                  <div className="mx-auto flex h-14 w-14 animate-card-in items-center justify-center rounded-full bg-accent-tint text-2xl font-bold text-accent-press">
-                    ✓
+                  <div className="headline text-[28px] text-white">
+                    {t("onboarding.step2.title")}
                   </div>
-                  <div className="headline text-[28px] text-ink">
-                    Ton radar est prêt.
+                  <div className="-mt-2 text-[13.5px] text-night-text">
+                    {t("onboarding.step2.subtitle")}
                   </div>
-                  <div className="-mt-2 text-[13.5px] text-body">
-                    Cote établie sur {picked.length} catégorie(s). Les lots sous la cote
-                    apparaissent déjà.
-                  </div>
-                  <div className="flex flex-wrap justify-center gap-2">
-                    {picked.map((c) => (
-                      <span
+                  <div className="flex flex-wrap gap-[9px]">
+                    {cats.map((c, i) => (
+                      <button
                         key={c.name}
-                        className="inline-flex items-center rounded-full bg-accent-tint px-[13px] py-[6px] text-xs font-semibold text-accent-press"
+                        onClick={() => toggleCat(i)}
+                        className={`inline-flex cursor-pointer items-center gap-[7px] rounded-full border-[1.5px] px-4 py-[9px] text-[13px] font-semibold transition-colors ${
+                          c.on
+                            ? "border-accent-dark/40 bg-accent/15 text-accent-dark"
+                            : "border-night-border text-night-text hover:border-night-border2 hover:text-white"
+                        }`}
                       >
-                        {c.name}
-                      </span>
+                        <span>{c.on ? "✓" : "+"}</span> {c.name}
+                      </button>
                     ))}
                   </div>
-                  <motion.button
-                    whileTap={{ scale: 0.97 }}
-                    onClick={finish}
-                    disabled={submitting}
-                    className="mx-auto mt-2 inline-flex h-[50px] cursor-pointer items-center justify-center rounded-full bg-accent px-7 text-[15px] font-semibold text-white shadow-cta transition-colors hover:bg-accent-press disabled:cursor-not-allowed disabled:bg-accent-disabled"
-                  >
-                    {submitting ? "Création…" : "Ouvrir le radar"}
-                  </motion.button>
+                  <div className="flex gap-[9px]">
+                    <input
+                      ref={customRef}
+                      value={custom}
+                      onChange={(e) => setCustom(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") addCustom();
+                      }}
+                      placeholder={t("onboarding.step2.customPlaceholder")}
+                      className="h-[42px] flex-1 rounded-full border border-night-border bg-night-elev px-[17px] text-[13px] text-white placeholder:text-night-dim outline-none transition-colors focus:border-night-border2"
+                    />
+                    <button
+                      ref={addRef}
+                      onClick={addCustom}
+                      className="inline-flex h-[42px] cursor-pointer items-center rounded-full border border-night-border bg-night-elev px-[17px] text-[13px] font-semibold text-night-text transition-colors hover:border-night-border2 hover:bg-night-border hover:text-white"
+                    >
+                      {t("onboarding.step2.add")}
+                    </button>
+                  </div>
+                  <div className="mt-1 flex items-center gap-3">
+                    <button onClick={back} className={secondaryCls}>
+                      {t("onboarding.step2.back")}
+                    </button>
+                    <span className="flex-1" />
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={next}
+                      className={`inline-flex h-12 cursor-pointer items-center rounded-full px-6 text-[14.5px] font-semibold transition-colors ${
+                        picked.length === 0
+                          ? "cursor-not-allowed bg-night-border text-night-dim"
+                          : "bg-accent-dark text-night shadow-[0_10px_30px_rgba(52,209,108,0.25)] hover:bg-accent-dark2"
+                      }`}
+                    >
+                      {t("onboarding.step2.continue", { n: picked.length })}
+                    </motion.button>
+                  </div>
                 </>
-              ))}
-          </motion.div>
-        </AnimatePresence>
+              )}
+
+              {step === 3 && (
+                <>
+                  <div className="headline text-[28px] text-white">
+                    {t("onboarding.step3.title")}
+                  </div>
+                  <div className="mb-3 mt-[2px] text-[13.5px] text-night-text">
+                    {t("onboarding.step3.subtitle")}
+                  </div>
+                  <div className="flex items-center justify-between py-[11px] text-[13.5px] text-night-text">
+                    <span>{t("onboarding.step3.budget")}</span>
+                    <input
+                      value={budget}
+                      onChange={(e) => setBudget(e.target.value)}
+                      className="h-10 w-[120px] rounded-full border border-night-border bg-night-elev px-[14px] text-center font-mono text-[13px] text-white outline-none transition-colors focus:border-night-border2"
+                    />
+                  </div>
+                  <div className="h-px bg-night-border" />
+                  <div className="flex items-center justify-between py-[11px] text-[13.5px] text-night-text">
+                    <span>{t("onboarding.step3.ceiling")}</span>
+                    <input
+                      value={ceiling}
+                      onChange={(e) => setCeiling(e.target.value)}
+                      className="h-10 w-[120px] rounded-full border border-night-border bg-night-elev px-[14px] text-center font-mono text-[13px] text-white outline-none transition-colors focus:border-night-border2"
+                    />
+                  </div>
+                  <div className="h-px bg-night-border" />
+                  <div className="flex items-center justify-between gap-[14px] py-[13px] text-[13.5px]">
+                    <span className="flex flex-col gap-[3px]">
+                      <span className="font-semibold text-white">
+                        {t("onboarding.step3.humanTitle")}
+                      </span>
+                      <span className="text-xs text-night-dim">
+                        {t("onboarding.step3.humanHint")}
+                      </span>
+                    </span>
+                    <span className="flex items-center gap-[9px]">
+                      <span className="inline-flex items-center rounded-full bg-accent/15 px-[10px] py-[3px] text-[10.5px] font-bold text-accent-dark">
+                        {t("onboarding.step3.alwaysOn")}
+                      </span>
+                      <button
+                        onClick={() => notify(t("onboarding.step3.permanentNotify"))}
+                        aria-label={t("onboarding.step3.humanAria")}
+                        className="relative h-[21px] w-9 flex-none cursor-default rounded-full bg-accent-dark opacity-60"
+                      >
+                        <span className="absolute left-[17px] top-[2px] h-[17px] w-[17px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,.35)]" />
+                      </button>
+                    </span>
+                  </div>
+                  <div className="mt-[10px] flex items-center gap-3">
+                    <button onClick={back} className={secondaryCls}>
+                      {t("onboarding.step3.back")}
+                    </button>
+                    <span className="flex-1" />
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={next}
+                      className="inline-flex h-12 cursor-pointer items-center rounded-full bg-accent-dark px-6 text-[14.5px] font-semibold text-night shadow-[0_10px_30px_rgba(52,209,108,0.25)] transition-colors hover:bg-accent-dark2"
+                    >
+                      {t("onboarding.step3.continue")}
+                    </motion.button>
+                  </div>
+                </>
+              )}
+
+              {step === 4 && (
+                <>
+                  <div className="headline text-[28px] text-white">
+                    {t("onboarding.step4.title")}
+                  </div>
+                  <div className="mb-3 mt-[2px] text-[13.5px] text-night-text">
+                    {t("onboarding.step4.subtitle")}
+                  </div>
+                  {PLATFORMS.map((p, i) => (
+                    <div key={p.id}>
+                      {i > 0 && <div className="h-px bg-night-border" />}
+                      <div className="flex items-center gap-3 py-[10px] text-[13.5px]">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-[9px] border border-night-border bg-night-elev text-[11px] font-bold text-night-text">
+                          {p.ini}
+                        </span>
+                        <span className="font-semibold text-white">{p.name}</span>
+                        <span className="flex-1" />
+                        {plat[p.id] ? (
+                          <span className="inline-flex items-center rounded-full bg-accent/15 px-[13px] py-[5px] text-[11.5px] font-bold text-accent-dark">
+                            {t("onboarding.step4.connected")}
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => connect(p.id)}
+                            className="inline-flex h-9 cursor-pointer items-center rounded-full border border-night-border bg-night-elev px-4 text-[12.5px] font-semibold text-night-text transition-colors hover:border-night-border2 hover:bg-night-border hover:text-white"
+                          >
+                            {t("onboarding.step4.connect")}
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  <div className="mt-[14px] flex items-center gap-3">
+                    <button onClick={back} className={secondaryCls}>
+                      {t("onboarding.step4.back")}
+                    </button>
+                    <span className="flex-1" />
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={next}
+                      className="shimmer-btn inline-flex h-12 cursor-pointer items-center rounded-full bg-accent-dark px-6 text-[14.5px] font-semibold text-night shadow-[0_10px_30px_rgba(52,209,108,0.28)] transition-colors hover:bg-accent-dark2"
+                    >
+                      {t("onboarding.step4.runScan")}
+                    </motion.button>
+                  </div>
+                </>
+              )}
+
+              {step === 5 &&
+                (scan < 100 ? (
+                  <>
+                    <div className="headline text-[28px] text-white">
+                      {t("onboarding.step5.title")}
+                    </div>
+                    <div className="-mt-2 text-[13.5px] text-night-text">{scanLabel}</div>
+                    <div className="mt-[10px] h-[10px] overflow-hidden rounded-full bg-night-border">
+                      <div
+                        className="h-full rounded-full bg-accent-dark"
+                        style={{ width: pct, transition: "width 1s linear" }}
+                      />
+                    </div>
+                    <div className="font-mono text-[13px] text-night-dim">{pct}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="mx-auto flex h-14 w-14 animate-card-in items-center justify-center rounded-full bg-accent/15 text-2xl font-bold text-accent-dark">
+                      ✓
+                    </div>
+                    <div className="headline text-[28px] text-white">
+                      {t("onboarding.step5.doneTitle")}
+                    </div>
+                    <div className="-mt-2 text-[13.5px] text-night-text">
+                      {t("onboarding.step5.doneSubtitle", { n: picked.length })}
+                    </div>
+                    <div className="flex flex-wrap justify-center gap-2">
+                      {picked.map((c) => (
+                        <span
+                          key={c.name}
+                          className="inline-flex items-center rounded-full bg-accent/15 px-[13px] py-[6px] text-xs font-semibold text-accent-dark"
+                        >
+                          {c.name}
+                        </span>
+                      ))}
+                    </div>
+                    <motion.button
+                      whileTap={{ scale: 0.97 }}
+                      onClick={finish}
+                      disabled={submitting}
+                      className="shimmer-btn mx-auto mt-2 inline-flex h-[50px] cursor-pointer items-center justify-center rounded-full bg-accent-dark px-7 text-[15px] font-semibold text-night shadow-[0_10px_30px_rgba(52,209,108,0.28)] transition-colors hover:bg-accent-dark2 disabled:cursor-not-allowed disabled:bg-night-border disabled:text-night-dim disabled:shadow-none"
+                    >
+                      {submitting ? t("onboarding.step5.creating") : t("onboarding.step5.open")}
+                    </motion.button>
+                  </>
+                ))}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
 
       <Toast />

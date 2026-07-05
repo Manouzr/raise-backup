@@ -56,7 +56,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
   if (body.extendTrialDays !== undefined) {
     const days = Number(body.extendTrialDays);
     if (!Number.isFinite(days)) {
-      return NextResponse.json({ error: { code: "invalid_body", message: "Durée d'essai invalide" } }, { status: 422 });
+      return NextResponse.json({ error: { code: "invalid_body", message: "Invalid trial length" } }, { status: 422 });
     }
     const base = org.trialEndsAt && org.trialEndsAt.getTime() > Date.now() ? org.trialEndsAt.getTime() : Date.now();
     const next = new Date(base + days * 24 * 3600 * 1000);

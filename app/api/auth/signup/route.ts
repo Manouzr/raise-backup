@@ -45,14 +45,14 @@ export async function POST(req: Request): Promise<Response> {
 
   if (!name || !email || !email.includes("@") || password.length < 6) {
     return NextResponse.json(
-      { error: { code: "invalid_body", message: "Nom, e-mail valide et mot de passe (6+ caractères) requis" } },
+      { error: { code: "invalid_body", message: "Name, valid email and password (6+ characters) required" } },
       { status: 422 },
     );
   }
 
   const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
   if (existing) {
-    return NextResponse.json({ error: { code: "email_taken", message: "Un compte existe déjà avec cet e-mail" } }, { status: 409 });
+    return NextResponse.json({ error: { code: "email_taken", message: "An account already exists with this email" } }, { status: 409 });
   }
 
   const passwordHash = await hashPassword(password);

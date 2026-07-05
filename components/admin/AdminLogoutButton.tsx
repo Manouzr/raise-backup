@@ -2,11 +2,13 @@
 
 import { useState } from "react";
 import { motion } from "motion/react";
+import { useT } from "@/lib/i18n/provider";
 
 // Déconnexion depuis le panel admin : détruit la session serveur puis renvoie
 // l'opérateur sur l'écran de connexion.
 
 export function AdminLogoutButton() {
+  const t = useT();
   const [pending, setPending] = useState(false);
 
   const logout = async () => {
@@ -27,9 +29,9 @@ export function AdminLogoutButton() {
       whileTap={{ scale: 0.97 }}
       onClick={logout}
       disabled={pending}
-      className="inline-flex h-9 cursor-pointer items-center rounded-full bg-control px-4 text-[12.5px] font-semibold text-ink transition-colors hover:bg-control-hover disabled:cursor-default disabled:opacity-60"
+      className="inline-flex h-9 cursor-pointer items-center rounded-full bg-night-elev px-4 text-[12.5px] font-semibold text-white transition-colors hover:bg-night-border disabled:cursor-default disabled:opacity-60"
     >
-      {pending ? "…" : "Déconnexion"}
+      {pending ? "…" : t("admin.logout")}
     </motion.button>
   );
 }

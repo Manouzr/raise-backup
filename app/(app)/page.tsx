@@ -7,6 +7,7 @@ import { euro, fmtEdge, fmtTime } from "@/lib/format";
 import type { PlanSummary } from "@/lib/platforms/ebay";
 import { RiskBadge, confidencePct, finalMaxBid, useLotVerdict } from "@/components/LotAnalysis";
 import { useApp } from "@/lib/store";
+import { useT } from "@/lib/i18n/provider";
 
 // Radar — flux d'opportunités RÉELLES (eBay, données live via /api/monitor).
 // L'utilisateur monitore des « types de produits » (requêtes) : montres en
@@ -49,21 +50,20 @@ type Evaluation = {
   comparables?: { title: string; soldPrice: number | null; date: string; source: string }[];
 };
 
-const BASIS_LABEL: Record<string, string> = {
-  sold_90d: "ventes conclues 90 j",
-  active_listings: "annonces actives",
-};
+// une opportunité + la cote de son type (pour analyser l'IA en amont)
+type OppRow = { lot: MonitorLot; type: string; median: number | null; maxProfitableBid: number | null };
 
-const WINDOWS: { value: 6 | 24 | 72; label: string }[] = [
-  { value: 6, label: "6 h" },
-  { value: 24, label: "24 h" },
-  { value: 72, label: "3 j" },
+const WINDOWS: { value: 6 | 24 | 72; labelKey: string }[] = [
+  { value: 6, labelKey: "radar.windows.6h" },
+  { value: 24, labelKey: "radar.windows.24h" },
+  { value: 72, labelKey: "radar.windows.3d" },
 ];
 
 // seuil d'alerte : lot au moins 30 % sous la cote
 const ALERT_EDGE_PCT = -30;
 
 export default function RadarPage() {
+  const t = useT();
   const categories = useApp((s) => s.categories);
   const setCategories = useApp((s) => s.setCategories);
   const hydrated = useApp((s) => s.hydrated);
@@ -81,6 +81,8 @@ export default function RadarPage() {
   const [maxHours, setMaxHours] = useState<6 | 24 | 72>(24);
   const [alertsOn, setAlertsOn] = useState(true);
   const [selected, setSelected] = useState<{ lot: MonitorLot; type: string } | null>(null);
+  const [oppLimit, setOppLimit] = useState(6);
+  const [showRest, setShowRest] = useState(false);
 
   // flags hors rendu : état du flux SSE, alertes déjà émises, cloche
   const streamDownRef = useRef(false);
@@ -127,18 +129,22 @@ export default function RadarPage() {
         alertedIdsRef.current.add(lot.lotId);
         if (!alertsOnRef.current) continue;
         const short = lot.title.length > 52 ? `${lot.title.slice(0, 52).trimEnd()}…` : lot.title;
-        const body = `Sous la cote : ${short} · ${euro(lot.currentBid)} (${fmtEdge(lot.edgePct)})`;
+        const body = t("radar.notify.belowMarket", {
+          title: short,
+          price: euro(lot.currentBid),
+          edge: fmtEdge(lot.edgePct),
+        });
         notify(body);
         if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") {
           try {
-            new Notification("BidEdge — sous la cote", { body });
+            new Notification(t("radar.notify.belowMarketTitle"), { body });
           } catch {
             // constructeur indisponible (mobile) — le toast suffit
           }
         }
       }
     },
-    [notify],
+    [notify, t],
   );
 
   const fetchType = useCallback(
@@ -227,52 +233,52 @@ export default function RadarPage() {
           if (p === "granted") {
             try {
               new Notification("BidEdge", {
-                body: "Alertes actives — tu seras prévenu dès qu'un lot passe sous −30 % de la cote.",
+                body: t("radar.alerts.enabledBody", { n: Math.abs(ALERT_EDGE_PCT) }),
               });
             } catch {
               // constructeur indisponible — le toast suffit
             }
           } else if (p === "denied") {
-            notify("Notifications bloquées par le navigateur — autorise-les dans les réglages du site");
+            notify(t("radar.alerts.blockedNotify"));
           }
         })
         .catch(() => {});
     } else if (Notification.permission === "granted") {
       setNotifPerm("granted");
       try {
-        new Notification("BidEdge", { body: "Alertes actives." });
+        new Notification("BidEdge", { body: t("radar.alerts.enabledShort") });
       } catch {
         // le toast suffit
       }
     } else {
-      notify("Notifications bloquées par le navigateur — autorise-les dans les réglages du site");
+      notify(t("radar.alerts.blockedNotify"));
     }
   };
 
   const addType = () => {
-    const t = newType.trim();
-    if (!t) {
-      notify("Nomme un type de produit à monitorer");
+    const val = newType.trim();
+    if (!val) {
+      notify(t("radar.notify.nameType"));
       return;
     }
-    if (types.some((x) => x.toLowerCase() === t.toLowerCase())) {
-      notify("Ce type est déjà monitoré");
+    if (types.some((x) => x.toLowerCase() === val.toLowerCase())) {
+      notify(t("radar.notify.alreadyMonitored"));
       setNewType("");
       return;
     }
-    setCategories([...types, t]);
+    setCategories([...types, val]);
     setNewType("");
-    notify(`Monitoring lancé : ${t}`);
+    notify(t("radar.notify.monitoringStarted", { type: val }));
   };
 
-  const removeType = (t: string) => {
-    setCategories(types.filter((x) => x !== t));
+  const removeType = (val: string) => {
+    setCategories(types.filter((x) => x !== val));
     setResults((r) => {
       const n = { ...r };
-      delete n[t];
+      delete n[val];
       return n;
     });
-    if (activeType === t) setActiveType(null);
+    if (activeType === val) setActiveType(null);
   };
 
   // agrège les lots de tous les types (ou du type filtré)
@@ -302,68 +308,87 @@ export default function RadarPage() {
   const anyLoading = shownTypes.some((t) => loading[t]);
   const activePlan = activeType ? (results[activeType]?.plan ?? null) : null;
 
+  // opportunités enrichies de la cote de leur type — permet d'analyser l'IA
+  // AVANT l'affichage (prix/risque sur la carte, sans attendre le clic)
+  const oppRows: OppRow[] = opportunities.map(({ lot, type }) => {
+    const rr = results[type];
+    return { lot, type, median: rr?.median ?? null, maxProfitableBid: rr?.maxProfitableBid ?? null };
+  });
+  // héros : la meilleure affaire AVEC de l'activité (évite le lot à 1 € sans enchère)
+  const hero = oppRows.find((o) => o.lot.bidCount >= 1) ?? oppRows[0] ?? null;
+  const restOpps = hero ? oppRows.filter((o) => o.lot.lotId !== hero.lot.lotId) : oppRows;
+  const restMarket = allLots.filter((r) => !r.lot.belowMarket);
+
   return (
-    <div className="flex-1 animate-fade-up overflow-y-auto px-8 py-[26px]">
+    <div className="flex-1 animate-fade-up overflow-y-auto bg-night px-8 py-[26px]">
       {/* header */}
       <div className="flex flex-wrap items-center gap-3.5">
-        <span className="headline text-[34px] text-ink">Radar</span>
-        <span className="inline-flex items-center gap-[7px] rounded-full bg-accent-tint px-3 py-[5px] text-xs font-semibold text-accent-press">
-          <span className="h-1.5 w-1.5 animate-blink rounded-full bg-accent" />
-          eBay en direct
+        <span className="headline text-[34px] text-white">{t("radar.title")}</span>
+        <span className="inline-flex items-center gap-[7px] rounded-full bg-accent/12 px-3 py-[5px] text-xs font-semibold text-accent-dark">
+          <span className="h-1.5 w-1.5 animate-blink rounded-full bg-accent-dark" />
+          {t("radar.liveBadge")}
         </span>
-        {opportunities.length > 0 && (
-          <span className="inline-flex items-center rounded-full bg-up-tint px-3 py-[5px] text-xs font-bold text-up-strong">
-            <span className="font-mono">{opportunities.length}</span>&nbsp;sous la cote
-          </span>
-        )}
         <span className="flex-1" />
-        {/* fenêtre de clôture */}
-        <span className="inline-flex items-center gap-1 rounded-full border border-hairline bg-white p-1 pl-3">
-          <span className="pr-1 text-[11.5px] font-medium text-muted">Ferme dans :</span>
-          {WINDOWS.map((w) => (
-            <button
-              key={w.value}
-              onClick={() => changeWindow(w.value)}
-              className={`rounded-full px-2.5 py-1 font-mono text-[11.5px] font-semibold transition-colors ${
-                maxHours === w.value ? "bg-ink text-white" : "text-body hover:bg-control"
-              }`}
-            >
-              {w.label}
-            </button>
-          ))}
-        </span>
-        {/* cloche — alertes navigateur */}
-        <button
-          onClick={toggleAlerts}
-          title={alertsOn ? "Alertes activées — clique pour couper" : "Alertes coupées — clique pour activer"}
-          className={`inline-flex items-center gap-1.5 rounded-full border px-[13px] py-2 text-[12.5px] font-medium transition-colors ${
-            alertsOn
-              ? "border-accent bg-accent-tint text-accent-press"
-              : "border-hairline bg-white text-muted hover:bg-control"
-          }`}
-        >
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            aria-hidden
+        {/* contrôles regroupés — discrets, pas des tuiles de dashboard */}
+        <div className="flex items-center gap-2 text-[11.5px]">
+          <div className="flex items-center rounded-full bg-night-elev p-0.5">
+            {WINDOWS.map((w) => (
+              <button
+                key={w.value}
+                onClick={() => changeWindow(w.value)}
+                title={t("radar.windowTooltip", { window: t(w.labelKey) })}
+                className={`rounded-full px-2.5 py-1 font-mono font-semibold transition-colors ${
+                  maxHours === w.value ? "bg-night-border2 text-white" : "text-night-dim hover:text-white"
+                }`}
+              >
+                {t(w.labelKey)}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setSortKey((k) => (k === "closing" ? "edge" : "closing"))}
+            className="rounded-full bg-night-elev px-3 py-[7px] font-medium text-night-text transition-colors hover:bg-night-border"
           >
-            <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
-            <path d="M13.7 21a2 2 0 0 1-3.4 0" />
-          </svg>
-          {alertsOn ? (notifPerm === "denied" ? "Alertes (bloquées)" : "Alertes on") : "Alertes off"}
-        </button>
-        <button
-          onClick={() => setSortKey((k) => (k === "closing" ? "edge" : "closing"))}
-          className="rounded-full border border-hairline bg-white px-[15px] py-2 text-[12.5px] font-medium text-body transition-colors hover:bg-control"
-        >
-          Tri : {sortKey === "closing" ? "ferment bientôt" : "meilleur edge"} ⇅
-        </button>
+            {sortKey === "closing" ? t("radar.sort.closing") : t("radar.sort.edge")} ⇅
+          </button>
+          <button
+            onClick={toggleAlerts}
+            title={
+              alertsOn
+                ? notifPerm === "denied"
+                  ? t("radar.alerts.blockedTitle")
+                  : t("radar.alerts.onTitle")
+                : t("radar.alerts.offTitle")
+            }
+            className={`flex items-center justify-center rounded-full p-2 transition-colors ${
+              alertsOn
+                ? notifPerm === "denied"
+                  ? "bg-[rgba(227,69,58,0.12)] text-down"
+                  : "bg-accent/12 text-accent-dark"
+                : "bg-night-elev text-night-dim hover:text-white"
+            }`}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+              {!alertsOn && <path d="M3 3l18 18" stroke="currentColor" />}
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* sous-titre narratif — on guide, on ne mesure pas */}
+      <div className="mt-1.5 text-[13.5px] text-night-text">
+        {opportunities.length > 0 ? (
+          <>
+            {t("radar.subtitle.dealsPrefix")}{" "}
+            <span className="font-semibold text-accent-dark">{opportunities.length}</span> {t("radar.subtitle.dealsSuffix")}
+          </>
+        ) : anyLoading ? (
+          t("radar.subtitle.loading")
+        ) : (
+          t("radar.subtitle.watching")
+        )}
       </div>
 
       {/* types monitorés + ajout */}
@@ -371,130 +396,156 @@ export default function RadarPage() {
         <button
           onClick={() => setActiveType(null)}
           className={`inline-flex items-center rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-            activeType === null ? "border-ink bg-ink text-white" : "border-hairline bg-white text-body hover:bg-control"
+            activeType === null ? "border-night-border2 bg-night-elev text-white" : "border-night-border bg-night-card text-night-text hover:bg-night-elev"
           }`}
         >
-          Tous · {types.length}
+          {t("radar.chips.all")} · {types.length}
         </button>
-        {types.map((t) => {
-          const r = results[t];
-          const active = activeType === t;
+        {types.map((type) => {
+          const r = results[type];
+          const active = activeType === type;
           const opps = r?.lots.filter((l) => l.belowMarket).length ?? 0;
           return (
             <span
-              key={t}
+              key={type}
               className={`group inline-flex items-center gap-1.5 rounded-full border py-1.5 pl-3.5 pr-2 text-xs font-semibold transition-colors ${
-                active ? "border-accent bg-accent-tint text-accent-press" : "border-hairline bg-white text-body hover:bg-control"
+                active ? "border-accent-dark/40 bg-accent/12 text-accent-dark" : "border-night-border bg-night-card text-night-text hover:bg-night-elev"
               }`}
             >
-              <button onClick={() => setActiveType(active ? null : t)} className="flex items-center gap-1.5">
-                {t}
-                {opps > 0 && <span className="font-mono text-up-strong">· {opps}</span>}
-                {loading[t] && <span className="h-1.5 w-1.5 animate-blink rounded-full bg-accent" />}
+              <button onClick={() => setActiveType(active ? null : type)} className="flex items-center gap-1.5">
+                {type}
+                {opps > 0 && <span className="font-mono text-accent-dark">· {opps}</span>}
+                {loading[type] && <span className="h-1.5 w-1.5 animate-blink rounded-full bg-accent-dark" />}
               </button>
               <button
-                onClick={() => removeType(t)}
-                className="flex h-4 w-4 items-center justify-center rounded-full text-muted transition-colors hover:bg-white hover:text-down"
-                title="Ne plus monitorer"
+                onClick={() => removeType(type)}
+                className="flex h-4 w-4 items-center justify-center rounded-full text-night-dim transition-colors hover:bg-night-elev hover:text-down"
+                title={t("radar.chips.removeTitle")}
               >
                 ×
               </button>
             </span>
           );
         })}
-        <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-[#cfc9ba] bg-white py-1 pl-3 pr-1">
+        <span className="inline-flex items-center gap-1 rounded-full border border-dashed border-night-border2 bg-night-card py-1 pl-3 pr-1">
           <input
             value={newType}
             onChange={(e) => setNewType(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter") addType();
             }}
-            placeholder="Ajouter un type… ex. « casque hi-fi vintage »"
-            className="w-[220px] bg-transparent text-xs text-ink outline-none placeholder:text-muted"
+            placeholder={t("radar.addPlaceholder")}
+            className="w-[220px] bg-transparent text-xs text-white outline-none placeholder:text-night-dim"
           />
           <button
             onClick={addType}
-            className="flex h-7 items-center rounded-full bg-accent px-3 text-xs font-semibold text-white transition-colors hover:bg-accent-press"
+            className="flex h-7 items-center rounded-full bg-accent-dark px-3 text-xs font-semibold text-night transition-colors hover:bg-accent-dark2"
           >
-            Monitorer
+            {t("radar.addButton")}
           </button>
         </span>
       </div>
 
       {/* ce que Gemini a compris de la requête du type filtré */}
       {activePlan && (
-        <div className="mt-2 text-[12px] text-muted">
-          Compris : {activePlan.searchQuery ?? activeType}
+        <div className="mt-2 text-[12px] text-night-dim">
+          {t("radar.plan.understood", { query: activePlan.searchQuery ?? activeType ?? "" })}
           {activePlan.excludeKeywords && activePlan.excludeKeywords.length > 0 && (
             <>
-              {" "}· exclu : {activePlan.excludeKeywords.slice(0, 3).join(", ")}
+              {" "}· {t("radar.plan.excluded", { list: activePlan.excludeKeywords.slice(0, 3).join(", ") })}
               {activePlan.excludeKeywords.length > 3 ? "…" : ""}
             </>
           )}
           {activePlan.maxPrice != null && (
             <>
-              {" "}· plafond <span className="font-mono">€{Math.round(activePlan.maxPrice)}</span>
+              {" "}· {t("radar.plan.capLabel")} <span className="font-mono">€{Math.round(activePlan.maxPrice)}</span>
             </>
           )}
           {(activePlan.excludedAsParts ?? 0) > 0 && (
             <>
-              {" "}· <span className="font-mono">{activePlan.excludedAsParts}</span> pour pièces écartées
+              {" "}· <span className="font-mono">{activePlan.excludedAsParts}</span> {t("radar.plan.partsExcluded")}
             </>
           )}
         </div>
       )}
 
-      {/* état vide / chargement */}
+      {/* rien à montrer encore */}
       {allLots.length === 0 && (
-        <div className="mt-10 flex flex-col items-center gap-2 text-center">
-          <div className="text-[15px] font-semibold">
-            {anyLoading ? "Scan des enchères eBay en cours…" : "Aucune enchère active trouvée"}
+        <div className="mt-14 flex flex-col items-center gap-2 text-center">
+          <div className="text-[15px] font-semibold text-white">
+            {anyLoading ? t("radar.empty.scanningTitle") : t("radar.empty.noneTitle")}
           </div>
-          <div className="max-w-[420px] text-[13px] text-body">
-            {anyLoading
-              ? "On interroge eBay pour tes types de produits — la cote et les lots arrivent."
-              : "Ajoute un type de produit à monitorer, ou vérifie que le service eBay tourne (ebay-service)."}
+          <div className="max-w-[420px] text-[13px] text-night-text">
+            {anyLoading ? t("radar.empty.scanningHint") : t("radar.empty.noneHint")}
           </div>
         </div>
       )}
 
-      {/* opportunités d'abord : sous la cote, triées par meilleur edge */}
-      {opportunities.length > 0 && (
-        <>
-          <div className="overline mb-2.5 mt-[22px]">
-            Opportunités — sous la cote · {opportunities.length}
-            {activeType && results[activeType]?.dominantCategory && (
-              <span className="ml-2 normal-case tracking-normal text-muted">
-                catégorie détectée : {results[activeType]?.dominantCategory}
-              </span>
-            )}
+      {/* aucune affaire mais des enchères existent */}
+      {allLots.length > 0 && !hero && (
+        <div className="mt-8 rounded-[24px] bg-night-elev px-6 py-8 text-center">
+          <div className="text-[14px] font-semibold text-white">{t("radar.noDeals.title")}</div>
+          <div className="mx-auto mt-1 max-w-[440px] text-[12.5px] leading-relaxed text-night-text">
+            {t("radar.noDeals.body", { n: restMarket.length })}
           </div>
-          <div className="grid grid-cols-4 gap-3">
-            {opportunities.map(({ lot, type }, i) => (
-              <LotCard key={lot.lotId} lot={lot} index={i} onOpen={() => setSelected({ lot, type })} />
+        </div>
+      )}
+
+      {/* ————— LE PARCOURS : la meilleure affaire, puis les suivantes ————— */}
+      {hero && (
+        <section className="mt-6">
+          <div className="overline mb-3">{t("radar.section.bestNow")}</div>
+          <HeroOpportunity row={hero} onOpen={() => setSelected({ lot: hero.lot, type: hero.type })} onFollow={follow} />
+        </section>
+      )}
+
+      {restOpps.length > 0 && (
+        <section className="mt-8">
+          <div className="overline mb-3">{t("radar.section.next")} · {restOpps.length}</div>
+          <div className="flex flex-col gap-2.5">
+            {restOpps.slice(0, oppLimit).map((row, i) => (
+              <OpportunityRow
+                key={row.lot.lotId}
+                row={row}
+                autoAnalyze={i < 4}
+                index={i}
+                onOpen={() => setSelected({ lot: row.lot, type: row.type })}
+              />
             ))}
           </div>
-        </>
+          {restOpps.length > oppLimit && (
+            <button
+              onClick={() => setOppLimit((n) => n + 8)}
+              className="mt-3 rounded-full bg-night-elev px-4 py-2 text-[12.5px] font-semibold text-night-text transition-colors hover:bg-night-border"
+            >
+              {t("radar.section.showMore", { n: Math.min(8, restOpps.length - oppLimit) })} ↓
+            </button>
+          )}
+        </section>
       )}
 
-      {/* le reste des enchères actives */}
-      {allLots.length > opportunities.length && (
-        <>
-          <div className="overline mb-2.5 mt-[22px]">
-            {activeType ?? "Toutes catégories"} · {allLots.length - opportunities.length} autres enchères
-          </div>
-          <div className="grid grid-cols-4 gap-3">
-            {allLots
-              .filter((r) => !r.lot.belowMarket)
-              .map(({ lot, type }, i) => (
+      {/* le marché au prix courant — replié, on ne noie pas le parcours */}
+      {restMarket.length > 0 && (
+        <section className="mt-8">
+          <button
+            onClick={() => setShowRest((v) => !v)}
+            className="overline flex items-center gap-1.5 transition-colors hover:text-white"
+          >
+            {t("radar.section.rest")} · {restMarket.length}
+            <span className="text-[10px]">{showRest ? "▲" : "▼"}</span>
+          </button>
+          {showRest && (
+            <div className="mt-3 grid grid-cols-4 gap-3">
+              {restMarket.map(({ lot, type }, i) => (
                 <LotCard key={lot.lotId} lot={lot} index={i} onOpen={() => setSelected({ lot, type })} />
               ))}
-          </div>
-        </>
+            </div>
+          )}
+        </section>
       )}
 
-      <div className="mb-1.5 mt-4 text-[11.5px] text-muted">
-        Le scan propose, toi tu choisis — et tu places chaque enchère toi-même sur eBay. Jamais d&apos;autobid.
+      <div className="mb-1.5 mt-8 text-[11.5px] text-night-dim">
+        {t("radar.footer")}
       </div>
 
       <AnimatePresence>
@@ -507,46 +558,300 @@ export default function RadarPage() {
 }
 
 function LotCard({ lot, index = 0, onOpen }: { lot: MonitorLot; index?: number; onOpen: () => void }) {
+  const t = useT();
   const closingSoon = lot.closesInSec > 0 && lot.closesInSec <= 3600;
   return (
     <motion.button
       onClick={onOpen}
       whileHover={{ y: -2 }}
       style={{ animationDelay: `${Math.min(index, 11) * 0.06}s` }}
-      className={`animate-rise flex flex-col gap-2 rounded-[21px] border bg-white p-3 text-left shadow-card transition-shadow hover:shadow-lift ${
-        lot.belowMarket ? "border-accent" : "border-hairline"
+      className={`animate-rise flex flex-col gap-2 rounded-[21px] border bg-night-card p-3 text-left transition-colors ${
+        lot.belowMarket ? "border-accent-dark" : "border-night-border hover:border-night-border2"
       }`}
     >
-      <div className="relative h-[92px] overflow-hidden rounded-[11px] bg-control">
+      <div className="relative h-[92px] overflow-hidden rounded-[11px] bg-night-elev">
         {lot.imageUrl ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={lot.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
         ) : null}
         {lot.belowMarket && (
-          <span className="absolute left-1.5 top-1.5 inline-flex items-center rounded-full bg-up-tint px-2 py-0.5 text-[10px] font-bold text-up-strong shadow-sm">
-            sous la cote
+          <span className="absolute left-1.5 top-1.5 inline-flex items-center rounded-full bg-accent-dark px-2 py-0.5 text-[10px] font-bold text-night">
+            {t("radar.card.belowMarket")}
           </span>
         )}
       </div>
-      <div className="line-clamp-2 min-h-[32px] text-[12.5px] font-semibold leading-[1.25]">{lot.title}</div>
+      <div className="line-clamp-2 min-h-[32px] text-[12.5px] font-semibold leading-[1.25] text-white">{lot.title}</div>
       <div className="flex items-baseline justify-between">
-        <span className="font-mono text-sm font-semibold">{euro(lot.currentBid)}</span>
+        <span className="font-mono text-sm font-semibold text-white">{euro(lot.currentBid)}</span>
         {lot.edgePct != null && (
           <span
             className="font-mono text-[11px] font-semibold"
-            style={{ color: lot.edgePct < 0 ? "#17714b" : "#7c828a" }}
+            style={{ color: lot.edgePct < 0 ? "#34d16c" : "#6f6f7a" }}
           >
             {fmtEdge(lot.edgePct)}
           </span>
         )}
       </div>
-      <div className="flex justify-between text-[10.5px] text-muted">
-        <span className="font-mono" style={{ color: closingSoon ? "#c13a2e" : undefined }}>
+      <div className="flex justify-between text-[10.5px] text-night-dim">
+        <span className="font-mono" style={{ color: closingSoon ? "#e3453a" : undefined }}>
           {lot.closesInSec > 0 ? fmtTime(lot.closesInSec) : "—"}
         </span>
-        <span>{lot.bidCount > 0 ? `${lot.bidCount} ench.` : "0 ench."}</span>
+        <span>{t("radar.card.bids", { n: lot.bidCount })}</span>
       </div>
     </motion.button>
+  );
+}
+
+/* mini-viz : bande de cote — situe l'enchère actuelle par rapport à la cote
+   médiane et au prix max conseillé. Le remplissage se dévoile de gauche à
+   droite (scaleX 0→1), dans l'esprit du CoteSpark de la landing. */
+function CoteBand({ currentBid, median, maxBid }: { currentBid: number; median: number | null; maxBid: number | null }) {
+  const t = useT();
+  if (median == null || median <= 0) return null;
+  const scale = Math.max(median, currentBid, maxBid ?? 0) * 1.08;
+  const pos = (v: number) => `${Math.max(0, Math.min(100, (v / scale) * 100))}%`;
+  return (
+    <div className="mt-3">
+      <div className="relative h-2 w-full overflow-hidden rounded-full bg-night-elev">
+        {/* remplissage : enchère actuelle */}
+        <motion.div
+          className="absolute inset-y-0 left-0 origin-left rounded-full bg-accent-dark/70"
+          style={{ width: pos(currentBid) }}
+          initial={{ scaleX: 0 }}
+          animate={{ scaleX: 1 }}
+          transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
+        />
+        {/* repère prix max conseillé */}
+        {maxBid != null && (
+          <span className="absolute inset-y-0 w-0.5 rounded-full bg-accent-dark" style={{ left: pos(maxBid) }} />
+        )}
+        {/* repère cote médiane */}
+        <span className="absolute inset-y-[-2px] w-px bg-white/70" style={{ left: pos(median) }} />
+      </div>
+      <div className="mt-1 flex justify-between text-[10px] text-night-dim">
+        <span className="font-mono">{euro(currentBid)}</span>
+        <span>{t("radar.band.market", { price: euro(median) })}</span>
+      </div>
+    </div>
+  );
+}
+
+/* ————————————— HÉROS : la meilleure affaire, lue par l'IA en amont ————————————— */
+
+function HeroOpportunity({ row, onOpen, onFollow }: { row: OppRow; onOpen: () => void; onFollow: (id: string) => void }) {
+  const t = useT();
+  const { lot, median, maxProfitableBid } = row;
+  const guardrails = useApp((s) => s.guardrails);
+  const { verdict, state, risk } = useLotVerdict(lot.lotId, median, true); // analysé d'emblée
+  const maxBid = finalMaxBid(maxProfitableBid, verdict);
+  const withinBudget = lot.currentBid <= guardrails.defaultCeiling;
+  const closingSoon = lot.closesInSec > 0 && lot.closesInSec <= 3600;
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}>
+      <div className="flex flex-col gap-5 rounded-[21px] border border-night-border bg-night-card p-5 shadow-[0_16px_40px_rgba(0,0,0,0.35)] sm:flex-row sm:p-6">
+        {/* visuel */}
+        <div className="relative h-[200px] w-full flex-none overflow-hidden rounded-[18px] bg-night-elev sm:h-[210px] sm:w-[280px]">
+          {lot.imageUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={lot.imageUrl} alt="" className="h-full w-full object-cover" />
+          ) : null}
+          <span className="absolute left-2.5 top-2.5 inline-flex items-center rounded-full bg-accent-dark px-2.5 py-1 text-[11px] font-bold text-night">
+            {lot.edgePct != null ? t("radar.market.edgeVsMarket", { edge: fmtEdge(lot.edgePct) }) : t("radar.hero.belowMarket")}
+          </span>
+        </div>
+
+        {/* détail + décision */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex items-center gap-2">
+            <span className="overline">{row.type}</span>
+            <span className="flex-1" />
+            {lot.closesInSec > 0 && (
+              <span className="font-mono text-[15px] font-semibold" style={{ color: closingSoon ? "#e3453a" : "#ffffff" }}>
+                {t("radar.hero.closesIn", { time: fmtTime(lot.closesInSec) })}
+              </span>
+            )}
+          </div>
+
+          <div className="headline mt-1 text-[22px] leading-tight text-white">{lot.title}</div>
+
+          {/* l'IA a déjà lu l'annonce — état + risque AVANT le clic */}
+          <div className="mt-1.5 min-h-[18px] text-[12.5px] text-night-text">
+            {state === "loading" || state === "idle" ? (
+              <span className="inline-flex items-center gap-1.5 text-night-dim">
+                <span className="h-1.5 w-1.5 animate-blink rounded-full bg-accent-dark" />
+                {t("radar.hero.aiReading")}
+              </span>
+            ) : verdict?.etatReel ? (
+              <>
+                {t("radar.hero.realConditionLabel")} <span className="font-semibold text-white">{verdict.etatReel}</span>
+              </>
+            ) : null}
+          </div>
+
+          {/* prix + risque */}
+          <div className="mt-3 flex flex-wrap items-end gap-x-4 gap-y-2">
+            <span>
+              <span className="text-[10.5px] font-bold uppercase tracking-[.07em] text-night-dim">{t("radar.currentBidLabel")}</span>
+              <br />
+              <span className="font-mono text-[26px] font-semibold text-white">{euro(lot.currentBid)}</span>
+            </span>
+            {risk && <RiskBadge risk={risk} className="mb-1.5" />}
+            <span
+              className={`mb-1.5 inline-flex items-center rounded-full px-2.5 py-1 text-[10.5px] font-semibold ${
+                withinBudget ? "bg-accent/12 text-accent-dark" : "bg-night-elev text-night-dim"
+              }`}
+            >
+              {withinBudget ? (
+                <>{t("radar.budget.within")} ·&nbsp;<span className="font-mono">€{guardrails.defaultCeiling}</span></>
+              ) : (
+                <>{t("radar.budget.over")}&nbsp;<span className="font-mono">€{guardrails.defaultCeiling}</span></>
+              )}
+            </span>
+          </div>
+
+          {/* cote + prix max (fusionné cote×marge / conseil IA) */}
+          <div className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1 text-[12.5px] text-night-text">
+            {median != null && (
+              <span>
+                {t("radar.market.median")} <span className="font-mono font-semibold text-white">{euro(median)}</span>
+              </span>
+            )}
+            {maxBid != null && (
+              <span>
+                {t("radar.market.maxPrice")} <span className="font-mono font-semibold text-accent-dark">{euro(maxBid)}</span>
+              </span>
+            )}
+          </div>
+
+          {/* bande de cote — situe l'enchère vs cote médiane / prix max */}
+          {median != null && <CoteBand currentBid={lot.currentBid} median={median} maxBid={maxBid} />}
+
+          {verdict?.resume && (
+            <div className="mt-2.5 rounded-[14px] bg-night-elev px-3.5 py-2.5 text-[12.5px] leading-relaxed text-night-text">
+              {verdict.resume}
+            </div>
+          )}
+
+          {/* actions */}
+          <div className="mt-auto flex flex-wrap items-center gap-2.5 pt-4">
+            {lot.itemWebUrl && (
+              <a
+                href={lot.itemWebUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex h-11 items-center rounded-full bg-accent-dark px-5 text-[13.5px] font-semibold text-night shadow-[0_10px_30px_rgba(52,209,108,0.25)] transition-colors hover:bg-accent-dark2"
+              >
+                {t("radar.actions.openEbay")} →
+              </a>
+            )}
+            <button
+              onClick={onOpen}
+              className="flex h-11 items-center rounded-full bg-night-elev px-5 text-[13.5px] font-semibold text-white transition-colors hover:bg-night-border"
+            >
+              {t("radar.actions.viewDetail")}
+            </button>
+            <button
+              onClick={() => onFollow(lot.lotId)}
+              className="flex h-11 items-center rounded-full px-4 text-[13px] font-semibold text-night-dim transition-colors hover:text-white"
+            >
+              {t("radar.actions.follow")}
+            </button>
+            {risk === "eviter" && (
+              <span className="text-[11px] font-semibold text-down">{t("radar.hero.aiAvoid")}</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+/* ————————————— FEED : opportunité en ligne, risque calculé en amont ————————————— */
+
+function OpportunityRow({ row, autoAnalyze, index = 0, onOpen }: { row: OppRow; autoAnalyze: boolean; index?: number; onOpen: () => void }) {
+  const t = useT();
+  const { lot, median, maxProfitableBid } = row;
+  const [asked, setAsked] = useState(false);
+  const enabled = autoAnalyze || asked;
+  const { verdict, state, risk } = useLotVerdict(lot.lotId, median, enabled);
+  const maxBid = finalMaxBid(maxProfitableBid, verdict);
+  const closingSoon = lot.closesInSec > 0 && lot.closesInSec <= 3600;
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.5, delay: Math.min(index, 8) * 0.06, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -1 }}
+      onClick={onOpen}
+      className="flex cursor-pointer items-center gap-4 rounded-[18px] border border-night-border bg-night-card p-3 transition-colors hover:border-night-border2"
+    >
+      {lot.imageUrl ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={lot.imageUrl} alt="" loading="lazy" className="h-14 w-14 flex-none rounded-[12px] bg-night-elev object-cover" />
+      ) : (
+        <div className="h-14 w-14 flex-none rounded-[12px] bg-night-elev" />
+      )}
+
+      <div className="min-w-0 flex-1">
+        <div className="line-clamp-1 text-[13px] font-semibold text-white">{lot.title}</div>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-night-dim">
+          <span className="font-mono" style={{ color: closingSoon ? "#e3453a" : undefined }}>
+            {lot.closesInSec > 0 ? fmtTime(lot.closesInSec) : "—"}
+          </span>
+          <span>· {t("radar.card.bids", { n: lot.bidCount })}</span>
+          {/* risque IA — visible avant le clic */}
+          {enabled && (state === "loading" || state === "idle") && (
+            <span className="inline-flex items-center gap-1">
+              · <span className="h-1 w-1 animate-blink rounded-full bg-accent-dark" /> {t("radar.row.aiReading")}
+            </span>
+          )}
+          {state === "done" && risk && (
+            <>
+              <span>·</span>
+              <RiskBadge risk={risk} />
+              {maxBid != null && (
+                <span>
+                  · {t("radar.row.maxLabel")} <span className="font-mono font-semibold text-accent-dark">{euro(maxBid)}</span>
+                </span>
+              )}
+            </>
+          )}
+          {!enabled && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setAsked(true);
+              }}
+              className="font-semibold text-night-dim transition-colors hover:text-accent-dark"
+            >
+              · {t("radar.row.analyze")}
+            </button>
+          )}
+        </div>
+      </div>
+
+      <div className="flex flex-none flex-col items-end gap-0.5">
+        <span className="font-mono text-[15px] font-semibold text-white">{euro(lot.currentBid)}</span>
+        {lot.edgePct != null && (
+          <span className="font-mono text-[11px] font-semibold text-accent-dark">{fmtEdge(lot.edgePct)}</span>
+        )}
+      </div>
+
+      {lot.itemWebUrl && (
+        <a
+          href={lot.itemWebUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="flex-none rounded-full bg-night-elev px-3 py-2 text-[11.5px] font-semibold text-accent-dark transition-colors hover:bg-night-border"
+        >
+          eBay →
+        </a>
+      )}
+    </motion.div>
   );
 }
 
@@ -561,9 +866,16 @@ function AdvisoryModal({
   onClose: () => void;
   onFollow: (lotId: string) => void;
 }) {
+  const t = useT();
   const guardrails = useApp((s) => s.guardrails);
   const [ev, setEv] = useState<Evaluation | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // libellé de la base de cote — traduit à l'usage
+  const BASIS_LABEL: Record<string, string> = {
+    sold_90d: t("radar.basis.sold90d"),
+    active_listings: t("radar.basis.activeListings"),
+  };
 
   useEffect(() => {
     let alive = true;
@@ -594,59 +906,59 @@ function AdvisoryModal({
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center">
       <motion.div
-        className="absolute inset-0 bg-[rgba(10,11,13,.46)]"
+        className="absolute inset-0 bg-[rgba(0,0,0,0.72)]"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
       />
       <motion.div
-        className="relative flex max-h-[92vh] w-[620px] max-w-[92vw] flex-col gap-4 overflow-y-auto rounded-[30px] bg-white p-[26px] shadow-overlay"
+        className="relative flex max-h-[92vh] w-[620px] max-w-[92vw] flex-col gap-4 overflow-y-auto rounded-[30px] border border-night-border bg-night-card p-[26px] shadow-[0_32px_80px_rgba(0,0,0,0.6)]"
         initial={{ opacity: 0, y: 20, scale: 0.96 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 12, scale: 0.97 }}
         transition={{ type: "spring", duration: 0.4, bounce: 0.22 }}
       >
         <div className="flex items-center gap-3">
-          <span className="text-[11px] font-bold uppercase tracking-[.07em] text-muted">eBay · {type}</span>
+          <span className="text-[11px] font-bold uppercase tracking-[.07em] text-night-dim">eBay · {type}</span>
           <span className="flex-1" />
           {lot.closesInSec > 0 && (
-            <span className="font-mono text-lg font-semibold" style={{ color: lot.closesInSec <= 1800 ? "#c13a2e" : "#0a0b0d" }}>
+            <span className="font-mono text-lg font-semibold" style={{ color: lot.closesInSec <= 1800 ? "#e3453a" : "#ffffff" }}>
               {fmtTime(lot.closesInSec)}
             </span>
           )}
         </div>
 
         <div className="flex gap-4">
-          <div className="h-[110px] w-[120px] flex-none overflow-hidden rounded-[14px] bg-control">
+          <div className="h-[110px] w-[120px] flex-none overflow-hidden rounded-[14px] bg-night-elev">
             {lot.imageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={lot.imageUrl} alt="" className="h-full w-full object-cover" />
             ) : null}
           </div>
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-            <div className="headline text-[17px] leading-snug">{lot.title}</div>
+            <div className="headline text-[17px] leading-snug text-white">{lot.title}</div>
             {/* le verdict IA fait partie du détail produit */}
             {verdict?.etatReel && (
-              <div className="text-[12px] text-body">
-                État réel (IA) : <span className="font-semibold text-ink">{verdict.etatReel}</span>
+              <div className="text-[12px] text-night-text">
+                {t("radar.hero.realConditionLabel")} <span className="font-semibold text-white">{verdict.etatReel}</span>
               </div>
             )}
             <div className="flex items-end gap-3">
               <span>
-                <span className="text-[10.5px] font-bold uppercase tracking-[.07em] text-muted">Enchère actuelle</span>
+                <span className="text-[10.5px] font-bold uppercase tracking-[.07em] text-night-dim">{t("radar.currentBidLabel")}</span>
                 <br />
-                <span className="font-mono text-[22px] font-semibold">{euro(lot.currentBid)}</span>
+                <span className="font-mono text-[22px] font-semibold text-white">{euro(lot.currentBid)}</span>
               </span>
               {lot.edgePct != null && (
                 <span
                   className="mb-1 inline-flex items-center rounded-full px-2.5 py-[3px] text-[11px] font-bold"
                   style={{
-                    background: lot.edgePct < 0 ? "#e4f0e7" : "#eef0f3",
-                    color: lot.edgePct < 0 ? "#17714b" : "#5b616e",
+                    background: lot.edgePct < 0 ? "rgba(52,209,108,0.12)" : "#1a1a1f",
+                    color: lot.edgePct < 0 ? "#34d16c" : "#a1a1aa",
                   }}
                 >
-                  {fmtEdge(lot.edgePct)} vs cote
+                  {t("radar.market.edgeVsMarket", { edge: fmtEdge(lot.edgePct) })}
                 </span>
               )}
               {risk && <RiskBadge risk={risk} className="mb-1" />}
@@ -656,73 +968,72 @@ function AdvisoryModal({
 
         {/* verdict pré-filtre */}
         <div
-          className="rounded-[14px] p-4"
+          className="rounded-[14px] border border-night-border p-4"
           style={{
-            background: loading ? "#f7f5ef" : worth ? (risk === "eviter" ? "#faeae7" : "#e4f0e7") : "#f7f5ef",
+            background: loading ? "#1a1a1f" : worth ? (risk === "eviter" ? "rgba(227,69,58,0.12)" : "rgba(52,209,108,0.12)") : "#1a1a1f",
           }}
         >
           {loading ? (
-            <div className="text-[13px] text-muted">Établissement de la cote…</div>
+            <div className="text-[13px] text-night-dim">{t("radar.modal.settingQuote")}</div>
           ) : ev && ev.median != null ? (
             <div className="flex flex-col gap-2">
               <div className="flex flex-wrap items-center gap-2">
                 <span
                   className="text-[13.5px] font-semibold"
-                  style={{ color: worth ? (risk === "eviter" ? "#9c2d24" : "#125a3c") : "#1d1d1e" }}
+                  style={{ color: worth ? (risk === "eviter" ? "#e3453a" : "#34d16c") : "#ffffff" }}
                 >
                   {worth
                     ? risk === "eviter"
-                      ? "Sous la cote, mais annonce à risque"
-                      : "Sous la cote, avec marge"
-                    : "Pas de marge suffisante"}
+                      ? t("radar.verdict.belowRisky")
+                      : t("radar.verdict.belowMargin")
+                    : t("radar.verdict.noMargin")}
                 </span>
                 {ev.basis && (
-                  <span className="inline-flex items-center rounded-full bg-white px-2 py-0.5 text-[10px] font-semibold text-muted">
-                    cote : {BASIS_LABEL[ev.basis] ?? ev.basis}
+                  <span className="inline-flex items-center rounded-full bg-night-card px-2 py-0.5 text-[10px] font-semibold text-night-dim">
+                    {t("radar.modal.basisLabel")} {BASIS_LABEL[ev.basis] ?? ev.basis}
                   </span>
                 )}
                 <span
                   className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10.5px] font-semibold ${
-                    withinBudget ? "bg-up-tint text-up-strong" : "bg-panel text-muted"
+                    withinBudget ? "bg-accent/12 text-accent-dark" : "bg-night-elev text-night-dim"
                   }`}
                 >
                   {withinBudget ? (
                     <>
-                      dans ta limite ·&nbsp;<span className="font-mono">€{guardrails.defaultCeiling}</span>
+                      {t("radar.budget.within")} ·&nbsp;<span className="font-mono">€{guardrails.defaultCeiling}</span>
                     </>
                   ) : (
                     <>
-                      au-dessus de ta limite&nbsp;<span className="font-mono">€{guardrails.defaultCeiling}</span>
+                      {t("radar.budget.over")}&nbsp;<span className="font-mono">€{guardrails.defaultCeiling}</span>
                     </>
                   )}
                 </span>
               </div>
-              <div className="flex flex-wrap gap-4 text-[12.5px]">
+              <div className="flex flex-wrap gap-4 text-[12.5px] text-night-text">
                 <span>
-                  Cote médiane <span className="font-mono font-semibold">{euro(ev.median)}</span>
+                  {t("radar.market.median")} <span className="font-mono font-semibold text-white">{euro(ev.median)}</span>
                 </span>
                 {ev.low != null && ev.high != null && (
-                  <span className="text-muted">
-                    fourchette <span className="font-mono">€{Math.round(ev.low)}–{Math.round(ev.high)}</span>
+                  <span className="text-night-dim">
+                    {t("radar.market.rangeLabel")} <span className="font-mono">€{Math.round(ev.low)}–{Math.round(ev.high)}</span>
                   </span>
                 )}
                 {maxBid != null && (
                   <span>
-                    prix max{" "}
-                    <span className="font-mono font-semibold text-accent-press">{euro(maxBid)}</span>
-                    {aiAdjusted && <span className="text-[11px] text-muted"> (ajusté IA)</span>}
+                    {t("radar.market.maxPrice")}{" "}
+                    <span className="font-mono font-semibold text-accent-dark">{euro(maxBid)}</span>
+                    {aiAdjusted && <span className="text-[11px] text-night-dim"> {t("radar.market.aiAdjusted")}</span>}
                   </span>
                 )}
-                <span className="text-muted">
-                  <span className="font-mono">{ev.sample_size ?? 0}</span> comparables
+                <span className="text-night-dim">
+                  <span className="font-mono">{ev.sample_size ?? 0}</span> {t("radar.market.comparables")}
                 </span>
               </div>
-              {ev.reason && <div className="text-[12.5px] leading-relaxed text-body">{ev.reason}</div>}
+              {ev.reason && <div className="text-[12.5px] leading-relaxed text-night-text">{ev.reason}</div>}
             </div>
           ) : (
-            <div className="text-[13px] text-body">
-              Cote indisponible pour ce type — vérifie le service eBay, ou l&apos;accès Marketplace Insights pour les
-              ventes conclues.
+            <div className="text-[13px] text-night-text">
+              {t("radar.modal.quoteUnavailable")}
             </div>
           )}
         </div>
@@ -730,10 +1041,10 @@ function AdvisoryModal({
         {/* lecture IA de l'annonce — l'état réel et le prix max sont déjà
             fusionnés dans le détail ci-dessus ; ici : signaux + résumé */}
         {worth && (
-          <div className="rounded-[14px] bg-panel p-4">
-            <div className="overline mb-2">Lecture de l&apos;annonce (IA)</div>
+          <div className="rounded-[14px] bg-night-elev p-4">
+            <div className="overline mb-2">{t("radar.modal.aiReadingTitle")}</div>
             {verdictState === "loading" || verdictState === "idle" ? (
-              <div className="text-[13px] text-muted">Lecture de l&apos;annonce…</div>
+              <div className="text-[13px] text-night-dim">{t("radar.modal.aiReadingLoading")}</div>
             ) : verdictState === "done" && verdict ? (
               <div className="flex flex-col gap-2">
                 {verdict.redFlags.length > 0 ? (
@@ -743,17 +1054,17 @@ function AdvisoryModal({
                     ))}
                   </ul>
                 ) : (
-                  <div className="text-[12.5px] text-up-strong">Aucun signal d&apos;alerte dans l&apos;annonce.</div>
+                  <div className="text-[12.5px] text-accent-dark">{t("radar.modal.noRedFlags")}</div>
                 )}
-                {verdict.resume && <div className="text-[12.5px] leading-relaxed text-body">{verdict.resume}</div>}
+                {verdict.resume && <div className="text-[12.5px] leading-relaxed text-night-text">{verdict.resume}</div>}
                 {confPct != null && (
-                  <div className="text-[11.5px] text-muted">
-                    confiance <span className="font-mono">{confPct}%</span>
+                  <div className="text-[11.5px] text-night-dim">
+                    {t("radar.modal.confidenceLabel")} <span className="font-mono">{confPct}%</span>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="text-[12.5px] text-muted">Analyse IA indisponible.</div>
+              <div className="text-[12.5px] text-night-dim">{t("radar.modal.aiUnavailable")}</div>
             )}
           </div>
         )}
@@ -763,10 +1074,10 @@ function AdvisoryModal({
           <div className="flex flex-col">
             {ev.comparables.slice(0, 4).map((c, i) => (
               <div key={i}>
-                {i > 0 && <div className="h-px bg-control" />}
-                <div className="flex justify-between py-1.5 text-[12px]">
+                {i > 0 && <div className="h-px bg-night-border" />}
+                <div className="flex justify-between py-1.5 text-[12px] text-night-text">
                   <span className="truncate pr-2">{c.title}</span>
-                  <span className="flex-none font-mono text-muted">{c.soldPrice != null ? euro(c.soldPrice) : "—"}</span>
+                  <span className="flex-none font-mono text-night-dim">{c.soldPrice != null ? euro(c.soldPrice) : "—"}</span>
                 </div>
               </div>
             ))}
@@ -777,10 +1088,10 @@ function AdvisoryModal({
         <div className="flex items-center gap-3">
           {risk === "eviter" ? (
             <span className="text-[11px] font-semibold text-down">
-              L&apos;IA déconseille ce lot — vérifie l&apos;annonce avant toute enchère.
+              {t("radar.modal.aiAvoid")}
             </span>
           ) : (
-            <span className="text-[11px] text-muted">Tu enchéris toi-même sur eBay — pas d&apos;autobid.</span>
+            <span className="text-[11px] text-night-dim">{t("radar.modal.selfBid")}</span>
           )}
           <span className="flex-1" />
           <button
@@ -788,18 +1099,18 @@ function AdvisoryModal({
               onFollow(lot.lotId);
               onClose();
             }}
-            className="flex h-11 items-center rounded-full bg-control px-5 text-[13.5px] font-semibold text-ink transition-colors hover:bg-control-hover"
+            className="flex h-11 items-center rounded-full bg-night-elev px-5 text-[13.5px] font-semibold text-white transition-colors hover:bg-night-border"
           >
-            Suivre
+            {t("radar.actions.follow")}
           </button>
           {lot.itemWebUrl && (
             <a
               href={lot.itemWebUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex h-11 items-center rounded-full bg-accent px-5 text-[13.5px] font-semibold text-white shadow-cta transition-colors hover:bg-accent-press"
+              className="flex h-11 items-center rounded-full bg-accent-dark px-5 text-[13.5px] font-semibold text-night shadow-[0_10px_30px_rgba(52,209,108,0.25)] transition-colors hover:bg-accent-dark2"
             >
-              Ouvrir sur eBay →
+              {t("radar.actions.openEbay")} →
             </a>
           )}
         </div>

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { Toggle } from "@/components/settings/Toggle";
 import { useApp } from "@/lib/store";
+import { useT } from "@/lib/i18n/provider";
 import { PLANS } from "@/lib/billing/plans";
 import { Reveal } from "@/components/ui/taap";
 
@@ -12,8 +13,9 @@ import { Reveal } from "@/components/ui/taap";
 // Le garde-fou "confirmation humaine" est permanent : le toggle est
 // verrouillé ON et ne peut JAMAIS se désactiver.
 
-const CARD = "rounded-card border border-hairline bg-white px-6 py-5 shadow-card";
-const LABEL = "overline";
+const CARD =
+  "rounded-card border border-night-border bg-night-card px-6 py-5 shadow-[0_16px_40px_rgba(0,0,0,0.35)] transition-colors hover:border-night-border2";
+const LABEL = "overline !text-night-dim";
 
 type Plan = "chasseur" | "pro" | "equipe";
 
@@ -68,13 +70,14 @@ function GuardrailInput({
       onKeyDown={(e) => {
         if (e.key === "Enter") e.currentTarget.blur();
       }}
-      className="h-[38px] w-[110px] rounded-full border border-hairline bg-white text-center font-mono text-[13px]"
+      className="h-[38px] w-[110px] rounded-full border border-night-border bg-night-elev text-center font-mono text-[13px] text-white"
     />
   );
 }
 
 export default function ReglagesPage() {
   const router = useRouter();
+  const t = useT();
   const guardrails = useApp((s) => s.guardrails);
   const setGuardrails = useApp((s) => s.setGuardrails);
   const notify = useApp((s) => s.notify);
@@ -119,29 +122,31 @@ export default function ReglagesPage() {
   const [drouot, setDrouot] = useState(false);
 
   const connectedBadge = (
-    <span className="inline-flex items-center rounded-full bg-up-tint px-3 py-1 text-[11.5px] font-semibold text-up-strong">
-      Connecté
+    <span className="inline-flex items-center rounded-full bg-accent/12 px-3 py-1 text-[11.5px] font-semibold text-accent-dark">
+      {t("reglages.connected")}
     </span>
   );
 
   return (
-    <div className="flex-1 animate-fade-up overflow-y-auto px-8 py-[26px]">
-      <h1 className="headline text-[34px] text-ink">Réglages</h1>
-      <div className="mt-1.5 text-[13px] text-body">Ton compte et tes garde-fous.</div>
+    <div className="flex-1 animate-fade-up overflow-y-auto bg-night px-8 py-[26px] text-night-text">
+      <h1 className="headline text-[34px] text-white">{t("reglages.title")}</h1>
+      <div className="mt-1.5 text-[13px] text-night-text">{t("reglages.subtitle")}</div>
 
       {/* abonnement */}
       <Reveal className="mt-[18px]">
       <div className={`${CARD} flex items-center gap-3.5`}>
         <div className="flex flex-1 flex-col gap-1">
           <div className="flex items-center gap-[9px]">
-            <span className="headline text-[19px] text-ink">
-              {org ? `Plan ${org.planLabel}${trialing ? " — essai" : ""}` : "Plan"}
+            <span className="headline text-[19px] text-white">
+              {org
+                ? `${t("reglages.planPrefix")} ${org.planLabel}${trialing ? t("reglages.trialSuffix") : ""}`
+                : t("reglages.planPrefix")}
             </span>
             {org && (
-              <span className="inline-flex items-center rounded-full bg-accent-tint px-2.5 py-[3px] text-[10.5px] font-semibold text-accent-press">
+              <span className="inline-flex items-center rounded-full bg-accent/12 px-2.5 py-[3px] text-[10.5px] font-semibold text-accent-dark">
                 {trialing && org.trialDaysLeft != null ? (
                   <>
-                    <span className="font-mono">{org.trialDaysLeft}</span>&nbsp;j restants
+                    <span className="font-mono">{org.trialDaysLeft}</span>&nbsp;{t("reglages.daysLeft")}
                   </>
                 ) : (
                   org.statusLabel
@@ -149,10 +154,11 @@ export default function ReglagesPage() {
               </span>
             )}
           </div>
-          <span className="text-[12.5px] text-muted">
+          <span className="text-[12.5px] text-night-dim">
             {org ? (
               <>
-                <span className="font-mono">€{org.priceEUR}</span>/mois · {PLANS[org.plan].blurb}
+                <span className="font-mono">€{org.priceEUR}</span>
+                {t("reglages.perMonth")} · {PLANS[org.plan].blurb}
               </>
             ) : null}
           </span>
@@ -160,10 +166,10 @@ export default function ReglagesPage() {
         <motion.button
           type="button"
           whileTap={{ scale: 0.96 }}
-          onClick={() => notify("Ouverture du portail de facturation…")}
-          className="inline-flex h-10 cursor-pointer items-center rounded-full bg-control px-[18px] text-[13px] font-semibold hover:bg-control-hover"
+          onClick={() => notify(t("reglages.notifyBillingPortal"))}
+          className="inline-flex h-10 cursor-pointer items-center rounded-full bg-night-elev px-[18px] text-[13px] font-semibold text-white transition-colors hover:bg-night-border"
         >
-          Gérer la facturation
+          {t("reglages.manageBilling")}
         </motion.button>
       </div>
       </Reveal>
@@ -171,29 +177,29 @@ export default function ReglagesPage() {
       {/* profil */}
       <Reveal delay={0.06} className="mt-3.5">
       <div className={`${CARD} flex flex-col gap-3.5`}>
-        <span className={LABEL}>Profil</span>
+        <span className={LABEL}>{t("reglages.profile")}</span>
         <div className="flex items-center gap-3.5">
-          <span className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full bg-accent-tint text-[17px] font-semibold text-accent-press">
+          <span className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-full bg-accent/12 text-[17px] font-semibold text-accent-dark">
             M
           </span>
           <div className="flex flex-1 gap-2.5">
             <input
-              aria-label="Nom"
+              aria-label={t("reglages.nameAria")}
               defaultValue="Manou"
-              className="h-[42px] min-w-0 flex-1 rounded-xl border border-hairline bg-white px-3.5 text-[13.5px]"
+              className="h-[42px] min-w-0 flex-1 rounded-xl border border-night-border bg-night-elev px-3.5 text-[13.5px] text-white placeholder:text-night-dim"
             />
             <input
-              aria-label="E-mail"
+              aria-label={t("reglages.emailAria")}
               defaultValue="manou@bidedge.app"
-              className="h-[42px] min-w-0 flex-[1.4] rounded-xl border border-hairline bg-white px-3.5 text-[13.5px]"
+              className="h-[42px] min-w-0 flex-[1.4] rounded-xl border border-night-border bg-night-elev px-3.5 text-[13.5px] text-white placeholder:text-night-dim"
             />
             <motion.button
               type="button"
               whileTap={{ scale: 0.96 }}
-              onClick={() => notify("Bientôt disponible")}
-              className="inline-flex h-[42px] cursor-pointer items-center rounded-full bg-control px-4 text-[12.5px] font-semibold hover:bg-control-hover"
+              onClick={() => notify(t("reglages.notifySoon"))}
+              className="inline-flex h-[42px] cursor-pointer items-center rounded-full bg-night-elev px-4 text-[12.5px] font-semibold text-white transition-colors hover:bg-night-border"
             >
-              Français ▾
+              {t("reglages.language")} ▾
             </motion.button>
           </div>
         </div>
@@ -203,106 +209,160 @@ export default function ReglagesPage() {
       {/* enchères & garde-fous */}
       <Reveal delay={0.12} className="mt-3.5">
       <div className={`${CARD} flex flex-col gap-1`}>
-        <span className={`${LABEL} mb-2`}>Enchères &amp; garde-fous</span>
-        <div className="flex items-center justify-between py-2.5 text-[13.5px]">
-          <span>Budget mensuel</span>
+        <span className={`${LABEL} mb-2`}>{t("reglages.guardrailsTitle")}</span>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.35, delay: 0, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center justify-between py-2.5 text-[13.5px] text-white"
+        >
+          <span>{t("reglages.monthlyBudget")}</span>
           <GuardrailInput
-            label="Budget mensuel"
+            label={t("reglages.monthlyBudget")}
             value={guardrails.monthlyBudget}
             onCommit={(n) => setGuardrails({ monthlyBudget: n })}
           />
-        </div>
-        <div className="h-px bg-hairline" />
-        <div className="flex items-center justify-between py-2.5 text-[13.5px]">
-          <span>Limite par défaut sur un nouveau lot</span>
+        </motion.div>
+        <div className="h-px bg-night-border" />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.35, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center justify-between py-2.5 text-[13.5px] text-white"
+        >
+          <span>{t("reglages.defaultCeiling")}</span>
           <GuardrailInput
-            label="Limite par défaut sur un nouveau lot"
+            label={t("reglages.defaultCeiling")}
             value={guardrails.defaultCeiling}
             onCommit={(n) => setGuardrails({ defaultCeiling: n })}
           />
-        </div>
-        <div className="h-px bg-hairline" />
-        <div className="flex items-center justify-between gap-3.5 py-3 text-[13.5px]">
+        </motion.div>
+        <div className="h-px bg-night-border" />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.35, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center justify-between gap-3.5 py-3 text-[13.5px]"
+        >
           <span className="flex flex-col gap-[3px]">
-            <span className="font-semibold">Confirmation humaine avant chaque enchère</span>
-            <span className="text-xs text-muted">
-              BidEdge n&apos;enchérit jamais seul — ce garde-fou est permanent.
+            <span className="font-semibold text-white">{t("reglages.humanConfirm")}</span>
+            <span className="text-xs text-night-dim">
+              {t("reglages.humanConfirmDesc")}
             </span>
           </span>
           {/* toggle verrouillé — cliquer n'importe où rappelle le principe, ne désactive JAMAIS */}
           <span
             role="button"
             tabIndex={0}
-            aria-label="Garde-fou permanent — toujours actif"
-            onClick={() => notify("Ce garde-fou est permanent — humain dans la boucle, toujours.")}
+            aria-label={t("reglages.permanentAria")}
+            onClick={() => notify(t("reglages.notifyPermanent"))}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                notify("Ce garde-fou est permanent — humain dans la boucle, toujours.");
+                notify(t("reglages.notifyPermanent"));
               }
             }}
             className="flex cursor-pointer items-center gap-[9px]"
           >
-            <span className="inline-flex items-center rounded-full bg-accent-tint px-2.5 py-[3px] text-[10.5px] font-semibold text-accent-press">
-              toujours actif
+            <span className="inline-flex items-center rounded-full bg-accent/12 px-2.5 py-[3px] text-[10.5px] font-semibold text-accent-dark">
+              {t("reglages.alwaysOn")}
             </span>
-            <span className="relative h-[21px] w-9 flex-none rounded-full bg-accent opacity-55">
+            <span className="relative h-[21px] w-9 flex-none rounded-full bg-accent-dark opacity-55">
               <span className="absolute left-[17px] top-[2px] h-[17px] w-[17px] rounded-full bg-white shadow-[0_1px_3px_rgba(0,0,0,.25)]" />
             </span>
           </span>
-        </div>
+        </motion.div>
       </div>
       </Reveal>
 
       {/* notifications */}
       <Reveal delay={0.18} className="mt-3.5">
       <div className={`${CARD} flex flex-col gap-1`}>
-        <span className={`${LABEL} mb-2`}>Notifications</span>
-        <div className="flex items-center justify-between py-[9px] text-[13.5px]">
-          <span>Lot repéré sous −30% de la cote</span>
-          <Toggle on={n1} onToggle={() => setN1((v) => !v)} label="Lot repéré sous −30% de la cote" />
-        </div>
-        <div className="h-px bg-hairline" />
-        <div className="flex items-center justify-between py-[9px] text-[13.5px]">
-          <span>Surenchère sur un lot où tu mènes</span>
-          <Toggle on={n2} onToggle={() => setN2((v) => !v)} label="Surenchère sur un lot où tu mènes" />
-        </div>
-        <div className="h-px bg-hairline" />
-        <div className="flex items-center justify-between py-[9px] text-[13.5px]">
-          <span>Fin d&apos;une enchère trackée</span>
-          <Toggle on={n3} onToggle={() => setN3((v) => !v)} label="Fin d'une enchère trackée" />
-        </div>
+        <span className={`${LABEL} mb-2`}>{t("reglages.notifications")}</span>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.35, delay: 0, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center justify-between py-[9px] text-[13.5px] text-white"
+        >
+          <span>{t("reglages.notif1")}</span>
+          <Toggle on={n1} onToggle={() => setN1((v) => !v)} label={t("reglages.notif1")} />
+        </motion.div>
+        <div className="h-px bg-night-border" />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.35, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center justify-between py-[9px] text-[13.5px] text-white"
+        >
+          <span>{t("reglages.notif2")}</span>
+          <Toggle on={n2} onToggle={() => setN2((v) => !v)} label={t("reglages.notif2")} />
+        </motion.div>
+        <div className="h-px bg-night-border" />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.35, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center justify-between py-[9px] text-[13.5px] text-white"
+        >
+          <span>{t("reglages.notif3")}</span>
+          <Toggle on={n3} onToggle={() => setN3((v) => !v)} label={t("reglages.notif3")} />
+        </motion.div>
       </div>
       </Reveal>
 
       {/* plateformes connectées */}
       <Reveal delay={0.24} className="mt-3.5">
       <div className={`${CARD} flex flex-col gap-1`}>
-        <span className={`${LABEL} mb-2`}>Plateformes connectées</span>
-        <div className="flex items-center gap-3 py-[9px] text-[13.5px]">
-          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-control text-[11px] font-semibold text-body">
+        <span className={`${LABEL} mb-2`}>{t("reglages.platforms")}</span>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.35, delay: 0, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center gap-3 py-[9px] text-[13.5px]"
+        >
+          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-night-elev text-[11px] font-semibold text-night-text">
             eB
           </span>
-          <span className="font-semibold">eBay</span>
-          <span className="text-xs text-muted">manou_92</span>
+          <span className="font-semibold text-white">eBay</span>
+          <span className="text-xs text-night-dim">manou_92</span>
           <span className="flex-1" />
           {connectedBadge}
-        </div>
-        <div className="h-px bg-hairline" />
-        <div className="flex items-center gap-3 py-[9px] text-[13.5px]">
-          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-control text-[11px] font-semibold text-body">
+        </motion.div>
+        <div className="h-px bg-night-border" />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.35, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center gap-3 py-[9px] text-[13.5px]"
+        >
+          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-night-elev text-[11px] font-semibold text-night-text">
             Ca
           </span>
-          <span className="font-semibold">Catawiki</span>
+          <span className="font-semibold text-white">Catawiki</span>
           <span className="flex-1" />
           {connectedBadge}
-        </div>
-        <div className="h-px bg-hairline" />
-        <div className="flex items-center gap-3 py-[9px] text-[13.5px]">
-          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-control text-[11px] font-semibold text-body">
+        </motion.div>
+        <div className="h-px bg-night-border" />
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, margin: "-40px" }}
+          transition={{ duration: 0.35, delay: 0.12, ease: [0.22, 1, 0.36, 1] }}
+          className="flex items-center gap-3 py-[9px] text-[13.5px]"
+        >
+          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-night-elev text-[11px] font-semibold text-night-text">
             Dr
           </span>
-          <span className="font-semibold">Drouot</span>
+          <span className="font-semibold text-white">Drouot</span>
           <span className="flex-1" />
           {drouot ? (
             connectedBadge
@@ -312,16 +372,16 @@ export default function ReglagesPage() {
               whileTap={{ scale: 0.96 }}
               onClick={() => {
                 setDrouot(true);
-                notify("Drouot connecté via son API officielle");
+                notify(t("reglages.notifyDrouotConnected"));
               }}
-              className="inline-flex h-[34px] cursor-pointer items-center rounded-full bg-control px-[15px] text-xs font-semibold hover:bg-control-hover"
+              className="inline-flex h-[34px] cursor-pointer items-center rounded-full bg-night-elev px-[15px] text-xs font-semibold text-white transition-colors hover:bg-night-border"
             >
-              Connecter
+              {t("reglages.connect")}
             </motion.button>
           )}
-        </div>
-        <div className="pt-1.5 text-[11.5px] text-muted">
-          Les enchères passent par les API officielles des plateformes, jamais par scraping.
+        </motion.div>
+        <div className="pt-1.5 text-[11.5px] text-night-dim">
+          {t("reglages.platformsFooter")}
         </div>
       </div>
       </Reveal>
@@ -331,17 +391,17 @@ export default function ReglagesPage() {
         <button
           type="button"
           onClick={logout}
-          className="cursor-pointer text-[12.5px] font-semibold text-body hover:text-ink"
+          className="cursor-pointer text-[12.5px] font-semibold text-night-text hover:text-white"
         >
-          Se déconnecter
+          {t("reglages.logout")}
         </button>
         <span className="flex-1" />
         <button
           type="button"
-          onClick={() => notify("Écris-nous : support@bidedge.app")}
+          onClick={() => notify(t("reglages.notifySupport"))}
           className="cursor-pointer text-[12.5px] font-semibold text-down hover:underline"
         >
-          Supprimer le compte
+          {t("reglages.deleteAccount")}
         </button>
       </div>
     </div>

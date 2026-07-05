@@ -5,38 +5,38 @@ import type { Plan, SubscriptionStatus } from "@/lib/db/schema";
 
 export const PLANS: Record<Plan, { label: string; priceEUR: number; blurb: string; features: string[] }> = {
   chasseur: {
-    label: "Chasseur",
+    label: "Hunter",
     priceEUR: 0,
-    blurb: "1 catégorie scannée",
-    features: ["1 catégorie scannée", "Cote rafraîchie chaque semaine", "3 alertes par mois"],
+    blurb: "1 category scanned",
+    features: ["1 category scanned", "Market rate refreshed weekly", "3 alerts per month"],
   },
   pro: {
     label: "Pro",
     priceEUR: 19,
-    blurb: "Catégories illimitées, cote temps réel",
+    blurb: "Unlimited categories, real-time rate",
     features: [
-      "Catégories illimitées",
-      "Cote en temps réel + sous-modèles",
-      "Suggestions d'enchères en direct",
-      "Journal & mémoire de tes décisions",
+      "Unlimited categories",
+      "Real-time rate + sub-models",
+      "Live bid suggestions",
+      "Journal & memory of your decisions",
     ],
   },
   equipe: {
-    label: "Équipe",
+    label: "Team",
     priceEUR: 49,
-    blurb: "Organisation, rôles & budget partagé",
-    features: ["Tout Pro", "Organisation : rôles & membres", "Budget partagé, plafonds d'équipe", "Radar et catégories partagés"],
+    blurb: "Organization, roles & shared budget",
+    features: ["Everything in Pro", "Organization: roles & members", "Shared budget, team caps", "Shared radar and categories"],
   },
 };
 
 export const PLAN_ORDER: Plan[] = ["chasseur", "pro", "equipe"];
 
 export const STATUS_LABEL: Record<SubscriptionStatus, string> = {
-  trialing: "Essai",
-  active: "Actif",
-  past_due: "Impayé",
-  suspended: "Suspendu",
-  canceled: "Résilié",
+  trialing: "Trial",
+  active: "Active",
+  past_due: "Past due",
+  suspended: "Suspended",
+  canceled: "Canceled",
 };
 
 /** Jours restants avant la fin d'essai (négatif si dépassé, null si pas d'essai). */

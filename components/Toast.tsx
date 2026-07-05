@@ -17,7 +17,7 @@ export function Toast() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
             transition={{ duration: 0.25, ease: "easeOut" }}
-            className="whitespace-nowrap rounded-full bg-ink px-5 py-[11px] text-[13px] font-semibold text-white shadow-[0_12px_32px_rgba(10,11,13,.35)]"
+            className="whitespace-nowrap rounded-full border border-night-border bg-night-elev px-5 py-[11px] text-[13px] font-semibold text-white shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
           >
             {toast.message}
           </motion.div>

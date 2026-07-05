@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { LotVerdict } from "@/lib/platforms/ebay";
 import { euro } from "@/lib/format";
+import { useT } from "@/lib/i18n/provider";
 
 // Analyse IA du contexte d'un lot — hook + briques UI PARTAGÉES entre le
 // modal du radar et la page catégories. Le verdict n'est demandé que pour
@@ -17,10 +18,11 @@ export function riskOf(v: LotVerdict | null): VerdictRisk | null {
   return "sain";
 }
 
-export const RISK_STYLE: Record<VerdictRisk, { label: string; cls: string }> = {
-  sain: { label: "Annonce saine", cls: "bg-up-tint text-up-strong" },
-  vigilance: { label: "Vigilance", cls: "bg-brass-tint text-brass" },
-  eviter: { label: "À éviter", cls: "bg-down-tint text-down" },
+// Classes de style par risque (le libellé vient de l'i18n, cf. RiskBadge).
+export const RISK_STYLE: Record<VerdictRisk, { cls: string }> = {
+  sain: { cls: "bg-accent/12 text-accent-dark" },
+  vigilance: { cls: "bg-[rgba(168,123,47,0.15)] text-warn" },
+  eviter: { cls: "bg-[rgba(227,69,58,0.12)] text-down" },
 };
 
 export type VerdictState = "idle" | "loading" | "done" | "error";
@@ -62,10 +64,11 @@ export function useLotVerdict(itemId: string | null, median: number | null | und
 }
 
 export function RiskBadge({ risk, className = "" }: { risk: VerdictRisk; className?: string }) {
+  const t = useT();
   const s = RISK_STYLE[risk];
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[10.5px] font-bold ${s.cls} ${className}`}>
-      {s.label}
+      {t(`lot.risk.${risk}`)}
     </span>
   );
 }
@@ -82,11 +85,12 @@ export function confidencePct(v: LotVerdict | null): number | null {
  * fusionné dans la ligne de décision du produit (pas isolé ici).
  */
 export function VerdictBody({ verdict, compact = false }: { verdict: LotVerdict; compact?: boolean }) {
+  const t = useT();
   const pct = confidencePct(verdict);
   return (
     <div className={`flex flex-col ${compact ? "gap-1" : "gap-2"}`}>
       {verdict.etatReel && (
-        <div className={`font-semibold ${compact ? "text-[12.5px]" : "text-[13.5px]"}`}>{verdict.etatReel}</div>
+        <div className={`font-semibold text-white ${compact ? "text-[12.5px]" : "text-[13.5px]"}`}>{verdict.etatReel}</div>
       )}
       {verdict.redFlags.length > 0 && (
         <ul className={`flex flex-col gap-0.5 leading-relaxed text-warn ${compact ? "text-[12px]" : "text-[12.5px]"}`}>
@@ -96,11 +100,11 @@ export function VerdictBody({ verdict, compact = false }: { verdict: LotVerdict;
         </ul>
       )}
       {verdict.resume && (
-        <div className={`leading-relaxed text-body ${compact ? "text-[12px]" : "text-[12.5px]"}`}>{verdict.resume}</div>
+        <div className={`leading-relaxed text-night-text ${compact ? "text-[12px]" : "text-[12.5px]"}`}>{verdict.resume}</div>
       )}
       {pct != null && (
-        <div className="text-[11px] text-muted">
-          confiance <span className="font-mono">{pct}%</span>
+        <div className="text-[11px] text-night-dim">
+          {t("lot.confidence")} <span className="font-mono">{pct}%</span>
         </div>
       )}
     </div>

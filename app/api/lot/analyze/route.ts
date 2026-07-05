@@ -24,7 +24,7 @@ export async function GET(req: Request): Promise<Response> {
   const verdict = await getEbayAdapter().analyzeLot(itemId, median);
   if (!verdict) {
     return NextResponse.json(
-      { error: { code: "analysis_unavailable", message: "Analyse indisponible — vérifie la clé Gemini et le service eBay" } },
+      { error: { code: "analysis_unavailable", message: "Analysis unavailable — check the Gemini key and the eBay service" } },
       { status: 503 },
     );
   }

@@ -10,7 +10,7 @@ import { motion, type HTMLMotionProps } from "motion/react";
 /** Panneau de section : gris système, très arrondi (30px). */
 export function Panel({ className = "", children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`rounded-[30px] bg-panel ${className}`} {...rest}>
+    <div className={`rounded-[30px] border border-night-border bg-night-card ${className}`} {...rest}>
       {children}
     </div>
   );
@@ -19,7 +19,7 @@ export function Panel({ className = "", children, ...rest }: React.HTMLAttribute
 /** Carte standard : blanche, 21px, hairline + ombre discrète. */
 export function Card({ className = "", children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
   return (
-    <div className={`rounded-[21px] border border-hairline bg-white shadow-card ${className}`} {...rest}>
+    <div className={`rounded-[21px] border border-night-border bg-night-elev ${className}`} {...rest}>
       {children}
     </div>
   );
@@ -91,7 +91,7 @@ export function PillButton({
   return (
     <motion.button
       whileTap={{ scale: 0.97 }}
-      className={`inline-flex items-center justify-center rounded-full bg-accent font-semibold text-white shadow-cta transition-colors hover:bg-accent-press ${className}`}
+      className={`inline-flex items-center justify-center rounded-full bg-accent-dark font-semibold text-night shadow-cta transition-colors hover:bg-accent-dark2 ${className}`}
       {...rest}
     >
       {children}

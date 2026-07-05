@@ -176,7 +176,7 @@ export const useApp = create<AppState>()((set, get) => ({
         break;
       }
       case "outbid": {
-        get().notify("Surenchéri — nouvelle suggestion prête");
+        get().notify("Outbid — new suggestion ready");
         break;
       }
       case "closed": {
@@ -207,7 +207,7 @@ export const useApp = create<AppState>()((set, get) => ({
     const detail = details[hot.lotId];
     const price = hotMeta.finalBid ?? hot.currentBid;
     const shortCat =
-      detail?.filterKey === "montres" ? "Montres" : detail?.filterKey === "ram" ? "RAM" : detail?.filterKey === "gpu" ? "GPU" : detail?.categoryLabel ?? "Lot";
+      detail?.filterKey === "montres" ? "Watches" : detail?.filterKey === "ram" ? "RAM" : detail?.filterKey === "gpu" ? "GPU" : detail?.categoryLabel ?? "Lot";
     const entry: JournalEntry = {
       id: `${hot.lotId}-${Date.now()}`,
       ts: Date.now(),
@@ -217,21 +217,21 @@ export const useApp = create<AppState>()((set, get) => ({
       outcome: won ? "won" : "lost",
       price,
       learn: won
-        ? "appris : décisif quand le lot part très sous la cote"
-        : "appris : ne poursuit pas au-delà du plan",
+        ? "appris : decisive when the lot goes well under market"
+        : "appris : don't chase beyond the plan",
       gradient: detail?.gradient ?? "linear-gradient(140deg,#353b44,#101318)",
-      meta: `${shortCat} · à l'instant · ${hot.platform === "ebay" ? "eBay" : hot.platform === "catawiki" ? "Catawiki" : "Drouot"}`,
+      meta: `${shortCat} · just now · ${hot.platform === "ebay" ? "eBay" : hot.platform === "catawiki" ? "Catawiki" : "Drouot"}`,
     };
     const next = [entry, ...journal];
     set({ journal: next, declared: true, doneOpen: false });
     persist();
-    get().notify(won ? "Ajouté au Journal" : "Noté — limite tenue");
+    get().notify(won ? "Added to Journal" : "Noted — limit held");
   },
 
   follow: (lotId) => {
     set((st) => ({ followed: st.followed.includes(lotId) ? st.followed : [...st.followed, lotId] }));
     persist();
-    get().notify("Ajouté au radar");
+    get().notify("Added to radar");
   },
 
   notify: (message) => {

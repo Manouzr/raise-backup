@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { motion, useReducedMotion } from "motion/react";
 import { useApp } from "@/lib/store";
+import { useT } from "@/lib/i18n/provider";
+import { LocaleSwitcher } from "@/lib/i18n/LocaleSwitcher";
 
 // Sidebar de l'app — copie du prototype : nav pill, dot live sur Radar,
 // carte Essai Pro, profil en bas. Identité + abonnement viennent de
@@ -11,7 +14,7 @@ import { useApp } from "@/lib/store";
 
 type NavItem = {
   href: string;
-  label: string;
+  labelKey: string;
   icon: (active: boolean) => React.ReactNode;
   liveDot?: boolean;
 };
@@ -37,20 +40,14 @@ type Me = {
   };
 };
 
-const ROLE_LABEL: Record<OrgRole, string> = {
-  owner: "Owner",
-  encherisseur: "Enchérisseur",
-  observateur: "Observateur",
-};
-
 function iconColor(active: boolean): string {
-  return active ? "#1da757" : "#a3a3a8";
+  return active ? "#34d16c" : "#6f6f7a";
 }
 
 const NAV_MAIN: NavItem[] = [
   {
     href: "/",
-    label: "Radar",
+    labelKey: "sidebar.nav.radar",
     liveDot: true,
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={iconColor(a)} strokeWidth="1.6" strokeLinecap="round">
@@ -62,7 +59,7 @@ const NAV_MAIN: NavItem[] = [
   },
   {
     href: "/categories",
-    label: "Catégories",
+    labelKey: "sidebar.nav.categories",
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={iconColor(a)} strokeWidth="1.6">
         <rect x="2" y="2" width="5" height="5" rx="1.4" />
@@ -74,7 +71,7 @@ const NAV_MAIN: NavItem[] = [
   },
   {
     href: "/journal",
-    label: "Journal",
+    labelKey: "sidebar.nav.journal",
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={iconColor(a)} strokeWidth="1.6" strokeLinecap="round">
         <rect x="3" y="2" width="10" height="12" rx="1.6" />
@@ -87,7 +84,7 @@ const NAV_MAIN: NavItem[] = [
 const NAV_SECONDARY: NavItem[] = [
   {
     href: "/organisation",
-    label: "Organisation",
+    labelKey: "sidebar.nav.organisation",
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={iconColor(a)} strokeWidth="1.6" strokeLinecap="round">
         <circle cx="5.6" cy="5.8" r="2.3" />
@@ -98,12 +95,12 @@ const NAV_SECONDARY: NavItem[] = [
   },
   {
     href: "/reglages",
-    label: "Réglages",
+    labelKey: "sidebar.nav.reglages",
     icon: (a) => (
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={iconColor(a)} strokeWidth="1.6" strokeLinecap="round">
         <path d="M2.5 5h11M2.5 11h11" />
-        <circle cx="6.2" cy="5" r="1.8" fill="#fff" />
-        <circle cx="10" cy="11" r="1.8" fill="#fff" />
+        <circle cx="6.2" cy="5" r="1.8" fill="#141418" />
+        <circle cx="10" cy="11" r="1.8" fill="#141418" />
       </svg>
     ),
   },
@@ -112,7 +109,7 @@ const NAV_SECONDARY: NavItem[] = [
 // Réservé aux super-admins — même style que les autres liens.
 const NAV_ADMIN: NavItem = {
   href: "/admin",
-  label: "Admin",
+  labelKey: "sidebar.nav.admin",
   icon: (a) => (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke={iconColor(a)} strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
       <path d="M8 1.8l5 1.9v3.5c0 3-2.1 5.2-5 6.1-2.9-.9-5-3.1-5-6.1V3.7l5-1.9z" />
@@ -121,26 +118,45 @@ const NAV_ADMIN: NavItem = {
   ),
 };
 
-function NavLink({ item, active, live }: { item: NavItem; active: boolean; live: boolean }) {
+function NavLink({
+  item,
+  active,
+  live,
+  index,
+}: {
+  item: NavItem;
+  active: boolean;
+  live: boolean;
+  index: number;
+}) {
+  const reduce = useReducedMotion();
+  const t = useT();
   return (
-    <Link
-      href={item.href}
-      className={`flex items-center gap-[11px] rounded-full px-3 py-[9px] transition-colors ${
-        active ? "bg-panel text-ink" : "text-body hover:bg-panel"
-      }`}
+    <motion.div
+      initial={reduce ? false : { opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.34, delay: index * 0.06, ease: [0.22, 1, 0.36, 1] }}
     >
-      <span className="flex">{item.icon(active)}</span>
-      <span className="text-[13.5px] font-semibold">{item.label}</span>
-      {item.liveDot && live && (
-        <span className="ml-auto h-[7px] w-[7px] animate-blink rounded-full bg-accent" />
-      )}
-    </Link>
+      <Link
+        href={item.href}
+        className={`flex items-center gap-[11px] rounded-full px-3 py-[9px] transition-colors ${
+          active ? "bg-night-elev text-white" : "text-night-text hover:bg-white/5"
+        }`}
+      >
+        <span className="flex">{item.icon(active)}</span>
+        <span className="text-[13.5px] font-semibold">{t(item.labelKey)}</span>
+        {item.liveDot && live && (
+          <span className="ml-auto h-[7px] w-[7px] animate-blink rounded-full bg-accent-dark" />
+        )}
+      </Link>
+    </motion.div>
   );
 }
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
+  const t = useT();
   const live = useApp((s) => s.hotMeta?.phase === "live");
   const [me, setMe] = useState<Me | null>(null);
 
@@ -175,80 +191,97 @@ export function Sidebar() {
     org?.trialDaysLeft != null
       ? Math.max(6, Math.min(100, Math.round((org.trialDaysLeft / 14) * 100)))
       : 0;
-  const roleLabel = org ? ROLE_LABEL[org.role] : "";
+  const roleLabel = org ? t(`sidebar.role_${org.role}`) : "";
   const name = me?.user.name ?? "";
   const initial = name.trim().charAt(0).toUpperCase() || "·";
 
   const isActive = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href));
 
   return (
-    <div className="flex w-56 flex-none flex-col border-r border-hairline bg-white px-3 pb-3.5 pt-[18px]">
+    <div className="flex w-56 flex-none flex-col border-r border-night-border bg-night-card px-3 pb-3.5 pt-[18px]">
       <div className="flex items-center gap-2 px-2.5 pb-5 pt-0.5">
-        <Link href="/" className="headline text-[19px] text-ink">
-          Bid<span className="text-accent">Edge</span>
+        <Link href="/" className="headline text-[19px] text-white">
+          Bid<span className="text-accent-dark">Edge</span>
         </Link>
       </div>
 
-      {NAV_MAIN.map((item) => (
-        <NavLink key={item.href} item={item} active={isActive(item.href)} live={live} />
+      {NAV_MAIN.map((item, i) => (
+        <NavLink key={item.href} item={item} active={isActive(item.href)} live={live} index={i} />
       ))}
-      <div className="mx-2 my-3 h-px bg-hairline" />
-      {NAV_SECONDARY.map((item) => (
-        <NavLink key={item.href} item={item} active={isActive(item.href)} live={live} />
+      <div className="mx-2 my-3 h-px bg-night-border" />
+      {NAV_SECONDARY.map((item, i) => (
+        <NavLink
+          key={item.href}
+          item={item}
+          active={isActive(item.href)}
+          live={live}
+          index={NAV_MAIN.length + i}
+        />
       ))}
       {me?.user.isSuperAdmin && (
-        <NavLink item={NAV_ADMIN} active={isActive("/admin")} live={live} />
+        <NavLink
+          item={NAV_ADMIN}
+          active={isActive("/admin")}
+          live={live}
+          index={NAV_MAIN.length + NAV_SECONDARY.length}
+        />
       )}
 
       <div className="flex-1" />
 
+      <div className="mb-2.5 px-1">
+        <LocaleSwitcher />
+      </div>
+
       <Link
         href="/reglages"
-        className="mb-2.5 flex flex-col gap-[7px] rounded-[14px] bg-panel p-3 transition-colors hover:bg-control-hover"
+        className="mb-2.5 flex flex-col gap-[7px] rounded-[14px] bg-night-elev p-3 transition-colors hover:bg-night-border"
       >
         <div className="flex items-center gap-2">
-          <span className="text-[12.5px] font-bold text-ink">
+          <span className="text-[12.5px] font-bold text-white">
             {trialing
-              ? `Essai ${org?.planLabel}`
+              ? t("sidebar.trial", { plan: org?.planLabel ?? "" })
               : org
                 ? `${org.planLabel} · ${org.statusLabel}`
-                : "Abonnement"}
+                : t("sidebar.subscription")}
           </span>
           {trialing && (
-            <span className="ml-auto font-mono text-[11px] text-muted">{org?.trialDaysLeft} j restants</span>
+            <span className="ml-auto font-mono text-[11px] text-night-dim">
+              {t("sidebar.days_left", { n: org?.trialDaysLeft ?? 0 })}
+            </span>
           )}
         </div>
         {trialing && (
-          <div className="h-[5px] overflow-hidden rounded-full bg-hairline">
-            <div className="h-full bg-accent" style={{ width: `${trialPct}%` }} />
+          <div className="h-[5px] overflow-hidden rounded-full bg-night-border">
+            <div className="h-full bg-accent-dark" style={{ width: `${trialPct}%` }} />
           </div>
         )}
-        <span className="text-[11.5px] font-semibold text-accent">Gérer l&apos;abonnement →</span>
+        <span className="text-[11.5px] font-semibold text-accent-dark">{t("sidebar.manage")}</span>
       </Link>
 
       <Link
         href="/reglages"
-        className="flex items-center gap-2.5 rounded-[14px] px-2.5 py-2 transition-colors hover:bg-panel"
+        className="flex items-center gap-2.5 rounded-[14px] px-2.5 py-2 transition-colors hover:bg-white/5"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent-tint text-[12.5px] font-bold text-accent-press">
+        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-accent/15 text-[12.5px] font-bold text-accent-dark">
           {initial}
         </span>
         <span className="flex flex-col leading-[1.2]">
-          <span className="text-[13px] font-semibold text-ink">{name || "…"}</span>
-          <span className="text-[11px] text-muted">{org ? `${roleLabel} · ${org.name}` : ""}</span>
+          <span className="text-[13px] font-semibold text-white">{name || "…"}</span>
+          <span className="text-[11px] text-night-dim">{org ? `${roleLabel} · ${org.name}` : ""}</span>
         </span>
       </Link>
 
       <button
         type="button"
         onClick={logout}
-        className="mt-1 flex cursor-pointer items-center gap-2 rounded-full px-3 py-[7px] text-[11.5px] font-semibold text-muted transition-colors hover:bg-panel hover:text-ink"
+        className="mt-1 flex cursor-pointer items-center gap-2 rounded-full px-3 py-[7px] text-[11.5px] font-semibold text-night-dim transition-colors hover:bg-white/5 hover:text-white"
       >
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
           <path d="M6 2.5H3.4A1.4 1.4 0 002 3.9v8.2a1.4 1.4 0 001.4 1.4H6" />
           <path d="M10.5 11l3-3-3-3M13.5 8H6" />
         </svg>
-        Se déconnecter
+        {t("sidebar.logout")}
       </button>
     </div>
   );

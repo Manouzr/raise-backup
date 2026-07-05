@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/current";
+import { getT } from "@/lib/i18n/server";
 import { AdminLogoutButton } from "@/components/admin/AdminLogoutButton";
 
 // Panel super-admin plateforme — route top-level, hors du groupe (app) :
@@ -12,32 +13,33 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!user) redirect("/login?next=/admin");
   if (!user.isSuperAdmin) redirect("/");
 
+  const t = await getT();
   const initial = user.name.trim().charAt(0).toUpperCase() || "A";
 
   return (
-    <div className="flex min-h-screen flex-col bg-app text-ink">
-      <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-hairline bg-white px-6">
-        <span className="headline text-[18px] text-ink">
-          Bid<span className="text-accent">Edge</span>
+    <div className="flex min-h-screen flex-col bg-night text-white">
+      <header className="sticky top-0 z-10 flex h-14 items-center gap-4 border-b border-night-border bg-night-2/70 px-6 backdrop-blur-md">
+        <span className="headline text-[18px] text-white">
+          Bid<span className="text-accent-dark">Edge</span>
         </span>
-        <span className="inline-flex items-center rounded-full bg-ink px-3 py-1 text-[11px] font-semibold tracking-[.02em] text-white">
-          Admin plateforme
+        <span className="inline-flex items-center rounded-full bg-accent/12 px-3 py-1 text-[11px] font-semibold tracking-[.02em] text-accent-dark">
+          {t("admin.badge")}
         </span>
 
         <span className="flex-1" />
 
         <Link
           href="/"
-          className="text-[13px] font-semibold text-body transition-colors hover:text-ink"
+          className="text-[13px] font-semibold text-night-text transition-colors hover:text-white"
         >
-          ← Retour à l&apos;app
+          ← {t("admin.backToApp")}
         </Link>
 
         <span className="flex items-center gap-2.5 pl-1">
-          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-accent-tint text-[12.5px] font-semibold text-accent-press">
+          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-accent/12 text-[12.5px] font-semibold text-accent-dark">
             {initial}
           </span>
-          <span className="hidden text-[13px] font-semibold text-body sm:inline">{user.name}</span>
+          <span className="hidden text-[13px] font-semibold text-night-text sm:inline">{user.name}</span>
         </span>
 
         <AdminLogoutButton />

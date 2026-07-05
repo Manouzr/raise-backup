@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import type { Plan, SubscriptionStatus } from "@/lib/db/schema";
+import { useT } from "@/lib/i18n/provider";
 import { Reveal } from "@/components/ui/taap";
 import { OrgRow } from "./OrgRow";
 
@@ -28,6 +29,7 @@ export type AdminOrg = {
 type LoadState = "loading" | "ready" | "error";
 
 export function OrgTable() {
+  const t = useT();
   const [orgs, setOrgs] = useState<AdminOrg[]>([]);
   const [state, setState] = useState<LoadState>("loading");
   const [errMsg, setErrMsg] = useState<string | null>(null);
@@ -42,8 +44,8 @@ export function OrgTable() {
             setState("error");
             setErrMsg(
               res.status === 401 || res.status === 403
-                ? "Accès non autorisé."
-                : "Impossible de charger les organisations.",
+                ? t("admin.table.errorUnauthorized")
+                : t("admin.table.errorLoad"),
             );
           }
           return;
@@ -56,14 +58,14 @@ export function OrgTable() {
       } catch {
         if (active) {
           setState("error");
-          setErrMsg("Réseau indisponible.");
+          setErrMsg(t("admin.table.errorNetwork"));
         }
       }
     })();
     return () => {
       active = false;
     };
-  }, []);
+  }, [t]);
 
   // Fusion : l'API PATCH renvoie un sous-ensemble de champs (plan, statut,
   // essai). On préserve slug / membres / date de création côté client.
@@ -75,8 +77,8 @@ export function OrgTable() {
     <div className="mt-7">
       {state === "ready" && (
         <div className="mb-3 flex items-center">
-          <span className="overline">
-            Tenants&nbsp;·&nbsp;<span className="font-mono">{orgs.length}</span>
+          <span className="overline text-night-dim!">
+            {t("admin.table.tenants")}&nbsp;·&nbsp;<span className="font-mono">{orgs.length}</span>
           </span>
         </div>
       )}
@@ -84,20 +86,20 @@ export function OrgTable() {
       {state === "loading" && (
         <div className="flex flex-col gap-3" aria-busy="true">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="h-[108px] animate-pulse rounded-card bg-panel" />
+            <div key={i} className="h-[108px] animate-pulse rounded-card bg-night-elev" />
           ))}
         </div>
       )}
 
       {state === "error" && (
-        <div className="rounded-card bg-down-tint px-5 py-4 text-[13px] font-semibold text-down">
+        <div className="rounded-card bg-[rgba(227,69,58,0.12)] px-5 py-4 text-[13px] font-semibold text-down">
           {errMsg}
         </div>
       )}
 
       {state === "ready" && orgs.length === 0 && (
-        <div className="rounded-card border border-hairline bg-white px-5 py-10 text-center text-[13px] text-muted shadow-card">
-          Aucune organisation pour le moment.
+        <div className="rounded-card border border-night-border bg-night-card px-5 py-10 text-center text-[13px] text-night-dim">
+          {t("admin.table.empty")}
         </div>
       )}
 

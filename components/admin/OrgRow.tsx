@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { PLANS, PLAN_ORDER, STATUS_LABEL } from "@/lib/billing/plans";
 import type { Plan, SubscriptionStatus } from "@/lib/db/schema";
+import { useT } from "@/lib/i18n/provider";
 import type { AdminOrg } from "./OrgTable";
 
 // Une org = une ligne. Contrôles inline (plan, statut, essai) qui PATCH
@@ -22,15 +23,15 @@ type BusyKey = "plan" | "status" | "trial7" | "trial30";
 type PatchBody = { plan?: Plan; status?: SubscriptionStatus; extendTrialDays?: number };
 
 const SELECT_CLASS =
-  "h-9 cursor-pointer appearance-none rounded-full border border-hairline bg-white pl-3.5 pr-9 text-[12.5px] font-semibold text-ink outline-none transition-colors hover:bg-control focus:border-accent disabled:cursor-default disabled:opacity-55";
+  "h-9 cursor-pointer appearance-none rounded-full border border-night-border bg-night-elev pl-3.5 pr-9 text-[12.5px] font-semibold text-white outline-none transition-colors hover:bg-night-border focus:border-accent-dark disabled:cursor-default disabled:opacity-55";
 
 const TRIAL_BTN =
-  "inline-flex h-9 min-w-[52px] cursor-pointer items-center justify-center rounded-full bg-control px-3 text-[12.5px] font-semibold text-ink transition-colors hover:bg-control-hover disabled:cursor-default disabled:opacity-55";
+  "inline-flex h-9 min-w-[52px] cursor-pointer items-center justify-center rounded-full bg-night-elev px-3 text-[12.5px] font-semibold text-white transition-colors hover:bg-night-border disabled:cursor-default disabled:opacity-55";
 
 function statusBadgeClass(status: SubscriptionStatus): string {
-  if (status === "active") return "bg-up-tint text-up-strong";
-  if (status === "trialing") return "bg-accent-tint text-accent-press";
-  return "bg-down-tint text-down";
+  if (status === "active") return "bg-accent/15 text-accent-dark";
+  if (status === "trialing") return "bg-accent/12 text-accent-dark";
+  return "bg-[rgba(227,69,58,0.12)] text-down";
 }
 
 function fmtDate(iso: string): string {
@@ -46,6 +47,7 @@ export function OrgRow({
   org: AdminOrg;
   onUpdated: (org: Partial<AdminOrg> & { id: string }) => void;
 }) {
+  const t = useT();
   const [busy, setBusy] = useState<BusyKey | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [flash, setFlash] = useState(false);
@@ -74,7 +76,7 @@ export function OrgRow({
         const data = (await res.json().catch(() => null)) as {
           error?: { message?: string };
         } | null;
-        setErr(data?.error?.message ?? "Échec de la mise à jour");
+        setErr(data?.error?.message ?? t("admin.row.errorUpdate"));
         return;
       }
       const data = (await res.json()) as { org: Partial<AdminOrg> & { id: string } };
@@ -83,7 +85,7 @@ export function OrgRow({
       if (flashTimer.current) clearTimeout(flashTimer.current);
       flashTimer.current = setTimeout(() => setFlash(false), 1600);
     } catch {
-      setErr("Réseau indisponible");
+      setErr(t("admin.row.errorNetwork"));
     } finally {
       setBusy(null);
     }
@@ -93,18 +95,18 @@ export function OrgRow({
     <motion.div
       whileHover={{ y: -2 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className="rounded-card border border-hairline bg-white px-5 py-4 shadow-card transition-shadow hover:shadow-lift"
+      className="rounded-card border border-night-border bg-night-card px-5 py-4 transition-colors hover:border-night-border2 hover:bg-white/5"
     >
       {/* identité + état courant */}
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <div className="flex min-w-40 flex-1 flex-col leading-[1.3]">
-          <span className="truncate headline text-[17px] text-ink">{org.name}</span>
-          <span className="truncate font-mono text-[11.5px] text-muted">{org.slug}</span>
+          <span className="truncate headline text-[17px] text-white">{org.name}</span>
+          <span className="truncate font-mono text-[11.5px] text-night-dim">{org.slug}</span>
         </div>
 
-        <span className="inline-flex items-center gap-1.5 rounded-full bg-control px-3 py-1 text-[11.5px] font-semibold text-ink">
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-night-elev px-3 py-1 text-[11.5px] font-semibold text-white">
           {org.planLabel}
-          <span className="font-mono font-semibold text-muted">€{org.priceEUR}</span>
+          <span className="font-mono font-semibold text-night-dim">€{org.priceEUR}</span>
         </span>
 
         <span
@@ -116,37 +118,39 @@ export function OrgRow({
         {org.trialDaysLeft !== null && (
           <span
             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
-              org.trialDaysLeft > 0 ? "bg-accent-tint text-accent-press" : "bg-down-tint text-down"
+              org.trialDaysLeft > 0
+                ? "bg-accent/12 text-accent-dark"
+                : "bg-[rgba(227,69,58,0.12)] text-down"
             }`}
           >
             {org.trialDaysLeft > 0 ? (
               <>
-                <span className="font-mono">{org.trialDaysLeft}</span>&nbsp;j d&apos;essai
+                <span className="font-mono">{org.trialDaysLeft}</span>&nbsp;{t("admin.row.trialDaysSuffix")}
               </>
             ) : (
-              "essai échu"
+              t("admin.row.trialExpired")
             )}
           </span>
         )}
 
-        <span className="inline-flex items-center gap-1 text-[12px] text-muted">
-          <span className="font-mono text-body">{org.members}</span>
-          {org.members > 1 ? "membres" : "membre"}
+        <span className="inline-flex items-center gap-1 text-[12px] text-night-dim">
+          <span className="font-mono text-night-text">{org.members}</span>
+          {org.members > 1 ? t("admin.row.membersPlural") : t("admin.row.membersSingular")}
         </span>
 
-        <span className="hidden font-mono text-[11.5px] text-muted sm:inline">
+        <span className="hidden font-mono text-[11.5px] text-night-dim sm:inline">
           {fmtDate(org.createdAt)}
         </span>
       </div>
 
       {/* contrôles opérationnels */}
-      <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-hairline pt-3.5">
+      <div className="mt-3.5 flex flex-wrap items-center gap-2.5 border-t border-night-border pt-3.5">
         <div className="relative">
           <select
             value={org.plan}
             disabled={busy !== null}
             onChange={(e) => patch({ plan: e.target.value as Plan }, "plan")}
-            aria-label={`Plan de ${org.name}`}
+            aria-label={t("admin.row.planAria", { name: org.name })}
             className={SELECT_CLASS}
           >
             {PLAN_ORDER.map((p) => (
@@ -155,7 +159,7 @@ export function OrgRow({
               </option>
             ))}
           </select>
-          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-muted">
+          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-night-dim">
             ▾
           </span>
         </div>
@@ -165,7 +169,7 @@ export function OrgRow({
             value={org.status}
             disabled={busy !== null}
             onChange={(e) => patch({ status: e.target.value as SubscriptionStatus }, "status")}
-            aria-label={`Statut de ${org.name}`}
+            aria-label={t("admin.row.statusAria", { name: org.name })}
             className={SELECT_CLASS}
           >
             {STATUS_ORDER.map((s) => (
@@ -174,30 +178,30 @@ export function OrgRow({
               </option>
             ))}
           </select>
-          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-muted">
+          <span className="pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[9px] text-night-dim">
             ▾
           </span>
         </div>
 
-        <span className="mx-0.5 hidden h-5 w-px bg-hairline sm:block" />
+        <span className="mx-0.5 hidden h-5 w-px bg-night-border sm:block" />
 
         <button
           type="button"
           disabled={busy !== null}
           onClick={() => patch({ extendTrialDays: 7 }, "trial7")}
-          aria-label={`Prolonger l'essai de 7 jours pour ${org.name}`}
+          aria-label={t("admin.row.extendTrialAria", { days: 7, name: org.name })}
           className={TRIAL_BTN}
         >
-          {busy === "trial7" ? "…" : "+7 j"}
+          {busy === "trial7" ? "…" : t("admin.row.extendBtn", { days: 7 })}
         </button>
         <button
           type="button"
           disabled={busy !== null}
           onClick={() => patch({ extendTrialDays: 30 }, "trial30")}
-          aria-label={`Prolonger l'essai de 30 jours pour ${org.name}`}
+          aria-label={t("admin.row.extendTrialAria", { days: 30, name: org.name })}
           className={TRIAL_BTN}
         >
-          {busy === "trial30" ? "…" : "+30 j"}
+          {busy === "trial30" ? "…" : t("admin.row.extendBtn", { days: 30 })}
         </button>
 
         {/* feedback discret */}
@@ -209,9 +213,9 @@ export function OrgRow({
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-muted"
+                className="text-night-dim"
               >
-                Enregistrement…
+                {t("admin.row.saving")}
               </motion.span>
             ) : err ? (
               <motion.span
@@ -229,9 +233,9 @@ export function OrgRow({
                 initial={{ opacity: 0, y: 2 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="font-semibold text-up-strong"
+                className="font-semibold text-accent-dark"
               >
-                Enregistré
+                {t("admin.row.saved")}
               </motion.span>
             ) : null}
           </AnimatePresence>

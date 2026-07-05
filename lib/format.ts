@@ -20,14 +20,14 @@ export function edgeOf(value: number, median: number): number {
 
 /** -62 → "−62%" (vrai signe moins, comme le proto) */
 export function fmtEdge(pct: number): string {
-  if (pct === 0) return "à la cote";
+  if (pct === 0) return "at market";
   const sign = pct < 0 ? "−" : "+";
   return `${sign}${Math.abs(Math.round(pct))}%`;
 }
 
-/** secondes depuis la dernière enchère → "à l'instant" / "il y a 12 s" */
+/** secondes depuis la dernière enchère → "just now" / "12s ago" */
 export function fmtLastBid(secAgo: number): string {
-  return secAgo <= 1 ? "à l'instant" : `il y a ${secAgo} s`;
+  return secAgo <= 1 ? "just now" : `${secAgo}s ago`;
 }
 
 export function platformLabel(p: "ebay" | "catawiki" | "drouot"): string {

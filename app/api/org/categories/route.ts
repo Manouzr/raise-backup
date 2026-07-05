@@ -27,7 +27,7 @@ export async function PUT(req: Request): Promise<Response> {
   const { org, role } = guard.value;
   if (role === "observateur") {
     return NextResponse.json(
-      { error: { code: "forbidden", message: "Les observateurs ne modifient pas les catégories" } },
+      { error: { code: "forbidden", message: "Observers can't change categories" } },
       { status: 403 },
     );
   }

@@ -10,7 +10,7 @@ import { Toast } from "@/components/Toast";
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <FeedProvider>
-      <div className="flex h-screen overflow-hidden bg-app text-[14px] text-ink">
+      <div className="flex h-screen overflow-hidden bg-night text-[14px] text-white">
         <Sidebar />
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">{children}</div>
       </div>

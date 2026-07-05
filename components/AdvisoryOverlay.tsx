@@ -7,6 +7,7 @@ import { euro, fmtTime, platformLabel } from "@/lib/format";
 import { useApp } from "@/lib/store";
 import { withTaste } from "@/lib/taste";
 import { CoteBand } from "@/components/CoteBand";
+import { useT } from "@/lib/i18n/provider";
 
 // L'advisory — overlay modal AU-DESSUS du radar. Trois états (suggestion /
 // tu mènes / surenchéri), bande de cote avec pin qui glisse, comparables
@@ -22,6 +23,7 @@ export function AdvisoryOverlay() {
   const journal = useApp((s) => s.journal);
   const ceilingFor = useApp((s) => s.ceilingFor);
   const notify = useApp((s) => s.notify);
+  const t = useT();
 
   const [advisory, setAdvisory] = useState<BidAdvisory | null>(null);
   const [pending, setPending] = useState(false);
@@ -50,7 +52,7 @@ export function AdvisoryOverlay() {
     if (!hot || pending) return;
     const amount = hot.currentBid + 5;
     if (amount > ceiling) {
-      notify(`Au-dessus de ta limite €${ceiling} — on ne suit pas`);
+      notify(t("common.advisory.over_limit_notify", { ceiling }));
       return;
     }
     setPending(true);
@@ -61,17 +63,17 @@ export function AdvisoryOverlay() {
         body: JSON.stringify({ lotId: hot.lotId, amount }),
       });
       if (res.ok) {
-        notify(`Enchère placée · ${euro(amount)}`);
+        notify(t("common.advisory.bid_placed", { amount: euro(amount) }));
       } else {
         const body = (await res.json().catch(() => null)) as { error?: { message?: string } } | null;
-        notify(body?.error?.message ?? "Enchère refusée — réessaie");
+        notify(body?.error?.message ?? t("common.advisory.bid_rejected"));
       }
     } catch {
-      notify("Réseau indisponible — rien n'a été envoyé");
+      notify(t("common.advisory.network_error"));
     } finally {
       setPending(false);
     }
-  }, [hot, pending, ceiling, notify]);
+  }, [hot, pending, ceiling, notify, t]);
 
   if (!hot || !meta) return null;
 
@@ -81,7 +83,7 @@ export function AdvisoryOverlay() {
   const idle = live && !mine && !outbid;
   const sug = hot.currentBid + 5;
   const overCeiling = sug > ceiling;
-  const timeColor = hot.closesInSec <= 30 && live ? "text-down" : "text-ink";
+  const timeColor = hot.closesInSec <= 30 && live ? "text-down" : "text-white";
   const pinPct = Math.max(5, Math.min(92, ((hot.currentBid - 50) / 500) * 100));
   const comparables = advisory?.comparables ?? detail?.comparables ?? [];
   const band = advisory?.marketBand ?? detail?.band;
@@ -91,7 +93,7 @@ export function AdvisoryOverlay() {
       {open && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
           <motion.div
-            className="absolute inset-0 bg-[rgba(10,11,13,.46)]"
+            className="absolute inset-0 bg-ink/40 backdrop-blur-sm"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -99,7 +101,7 @@ export function AdvisoryOverlay() {
             onClick={close}
           />
           <motion.div
-            className="relative flex max-h-[92vh] w-[660px] max-w-[92vw] flex-col gap-[15px] overflow-y-auto rounded-3xl bg-white p-[26px] shadow-overlay"
+            className="relative flex max-h-[92vh] w-[660px] max-w-[92vw] flex-col gap-[15px] overflow-y-auto rounded-3xl border border-night-border bg-night-card p-[26px] shadow-[0_16px_40px_rgba(0,0,0,0.35)]"
             initial={{ opacity: 0, y: 20, scale: 0.96 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 12, scale: 0.97 }}
@@ -107,12 +109,12 @@ export function AdvisoryOverlay() {
           >
             {/* header */}
             <div className="flex items-center gap-3">
-              <span className="text-[11px] font-bold uppercase tracking-[.07em] text-muted">
-                {hot.title} · {platformLabel(hot.platform)} · {hot.bidCount} enchérisseurs
+              <span className="text-[11px] font-bold uppercase tracking-[.07em] text-night-dim">
+                {hot.title} · {platformLabel(hot.platform)} · {t("common.advisory.bidders", { n: hot.bidCount })}
               </span>
               <span className="flex-1" />
               <span className={`text-[10.5px] font-bold uppercase tracking-[.07em] ${timeColor}`}>
-                Ferme dans
+                {t("common.advisory.closes_in")}
               </span>
               <span className={`font-mono text-2xl font-semibold ${timeColor}`}>
                 {fmtTime(hot.closesInSec)}
@@ -128,29 +130,29 @@ export function AdvisoryOverlay() {
                 {idle && (
                   <div className="flex items-end gap-[15px]">
                     <span>
-                      <span className="text-[10.5px] font-bold uppercase tracking-[.07em] text-muted">
-                        Enchère actuelle
+                      <span className="text-[10.5px] font-bold uppercase tracking-[.07em] text-night-dim">
+                        {t("common.advisory.current_bid")}
                       </span>
                       <br />
-                      <span className="font-mono text-[19px] font-medium text-body">
+                      <span className="font-mono text-[19px] font-medium text-night-text">
                         {euro(hot.currentBid)}
                       </span>
                     </span>
-                    <span className="pb-0.5 text-[17px] text-muted">→</span>
+                    <span className="pb-0.5 text-[17px] text-night-dim">→</span>
                     <span>
-                      <span className="text-[10.5px] font-bold uppercase tracking-[.07em] text-accent-press">
-                        Enchère suggérée
+                      <span className="text-[10.5px] font-bold uppercase tracking-[.07em] text-accent-dark">
+                        {t("common.advisory.suggested_bid")}
                       </span>
                       <br />
-                      <span className="font-mono text-[31px] font-semibold text-accent">{euro(sug)}</span>
+                      <span className="font-mono text-[31px] font-semibold text-accent-dark">{euro(sug)}</span>
                     </span>
                     <span className="flex-1" />
                     <span className="text-right">
-                      <span className="text-[10.5px] font-bold uppercase tracking-[.07em] text-muted">
-                        Cote marché
+                      <span className="text-[10.5px] font-bold uppercase tracking-[.07em] text-night-dim">
+                        {t("common.advisory.market_rating")}
                       </span>
                       <br />
-                      <span className="font-mono text-[15px] font-medium">
+                      <span className="font-mono text-[15px] font-medium text-white">
                         {band ? `€${band.low}–${band.high}` : "—"}
                       </span>
                     </span>
@@ -159,33 +161,33 @@ export function AdvisoryOverlay() {
 
                 {mine && (
                   <motion.div
-                    className="flex items-center gap-2.5 rounded-[13px] bg-up-tint p-[13px] px-[15px]"
+                    className="flex items-center gap-2.5 rounded-[13px] bg-accent/12 p-[13px] px-[15px]"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
-                    <span className="text-[15px] font-bold text-up-strong">✓</span>
-                    <span className="text-[13.5px] leading-[1.4] text-[#125a3c]">
-                      <b>Tu mènes à {euro(hot.currentBid)}.</b> Je te préviens à la moindre surenchère —
-                      rien d&apos;autre à faire.
+                    <span className="text-[15px] font-bold text-accent-dark">✓</span>
+                    <span className="text-[13.5px] leading-[1.4] text-accent-dark2">
+                      <b>{t("common.advisory.leading", { amount: euro(hot.currentBid) })}</b>{" "}
+                      {t("common.advisory.leading_hint")}
                     </span>
                   </motion.div>
                 )}
 
                 {outbid && (
                   <motion.div
-                    className="flex items-center gap-3 rounded-[13px] bg-down-tint p-[13px] px-[15px]"
+                    className="flex items-center gap-3 rounded-[13px] bg-[rgba(227,69,58,0.12)] p-[13px] px-[15px]"
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                   >
-                    <span className="flex-1 text-[13.5px] leading-[1.4] text-[#9c2d24]">
-                      <b>Surenchéri — quelqu&apos;un est à {euro(hot.currentBid)}.</b>
+                    <span className="flex-1 text-[13.5px] leading-[1.4] text-down">
+                      <b>{t("common.advisory.outbid_lead", { amount: euro(hot.currentBid) })}</b>
                     </span>
                     <span className="flex-none text-right">
-                      <span className="text-[10px] font-bold uppercase tracking-[.07em] text-accent-press">
-                        Nouvelle suggestion
+                      <span className="text-[10px] font-bold uppercase tracking-[.07em] text-accent-dark">
+                        {t("common.advisory.new_suggestion")}
                       </span>
                       <br />
-                      <span className="font-mono text-2xl font-semibold text-accent">{euro(sug)}</span>
+                      <span className="font-mono text-2xl font-semibold text-accent-dark">{euro(sug)}</span>
                     </span>
                   </motion.div>
                 )}
@@ -201,7 +203,7 @@ export function AdvisoryOverlay() {
                   highLabel={band ? `€${band.high}` : "€320"}
                   pin={{
                     pct: pinPct,
-                    label: `${meta.leader === "user" ? "toi" : "lot"} · ${euro(hot.currentBid)}`,
+                    label: `${meta.leader === "user" ? t("common.advisory.pin_you") : t("common.advisory.pin_lot")} · ${euro(hot.currentBid)}`,
                   }}
                 />
               </div>
@@ -211,12 +213,12 @@ export function AdvisoryOverlay() {
             <div className="flex flex-col">
               {comparables.map((c, i) => (
                 <div key={c.title}>
-                  {i > 0 && <div className="h-px bg-control" />}
-                  <div className="flex justify-between py-1.5 text-[12.5px]">
+                  {i > 0 && <div className="h-px bg-night-border" />}
+                  <div className="flex justify-between py-1.5 text-[12.5px] text-night-text">
                     <span>
-                      {c.title} — <span className="font-mono">{euro(c.soldPrice)}</span>
+                      {c.title} — <span className="font-mono text-white">{euro(c.soldPrice)}</span>
                     </span>
-                    <span className="text-muted">
+                    <span className="text-night-dim">
                       {c.source} · {c.date}
                     </span>
                   </div>
@@ -225,54 +227,55 @@ export function AdvisoryOverlay() {
             </div>
 
             {advisory && (
-              <div className="rounded-[13px] bg-app p-[13px] px-[15px] text-[13.5px] leading-[1.5] text-ink">
+              <div className="rounded-[13px] bg-night-elev p-[13px] px-[15px] text-[13.5px] leading-[1.5] text-night-text">
                 {advisory.advisory}
               </div>
             )}
 
             {advisory?.learnsFrom && (
-              <div className="rounded-[13px] bg-accent-tint p-[13px] px-[15px] text-[12.5px] leading-[1.5] text-accent-press">
-                D&apos;après ton journal : {advisory.learnsFrom}
+              <div className="rounded-[13px] bg-accent/12 p-[13px] px-[15px] text-[12.5px] leading-[1.5] text-accent-dark">
+                {t("common.advisory.from_journal", { text: advisory.learnsFrom })}
               </div>
             )}
 
             {/* décision */}
             <div className="flex items-center gap-3">
-              <span className="text-xs text-muted">
-                Reste sous <span className="font-mono font-semibold text-ink">€{ceiling}</span> — au-delà
-                la marge fond
+              <span className="text-xs text-night-dim">
+                {t("common.advisory.stay_under_pre")}{" "}
+                <span className="font-mono font-semibold text-white">€{ceiling}</span>{" "}
+                {t("common.advisory.stay_under_post")}
               </span>
               <span className="flex-1" />
               <button
                 onClick={close}
-                className="flex h-11 items-center rounded-full bg-control px-5 text-[13.5px] font-semibold text-ink transition-colors hover:bg-control-hover"
+                className="flex h-11 items-center rounded-full bg-night-elev px-5 text-[13.5px] font-semibold text-white transition-colors hover:bg-night-border"
               >
-                {mine ? "Fermer" : "Passer"}
+                {mine ? t("common.advisory.close") : t("common.advisory.skip")}
               </button>
               {(idle || outbid) && (
                 <motion.button
                   whileTap={{ scale: 0.96 }}
                   onClick={placeBid}
                   disabled={pending || overCeiling}
-                  className={`flex h-[46px] items-center rounded-full px-6 text-[14.5px] font-semibold text-white transition-colors ${
+                  className={`flex h-[46px] items-center rounded-full px-6 text-[14.5px] font-semibold transition-colors ${
                     overCeiling
-                      ? "cursor-not-allowed bg-accent-disabled"
-                      : "bg-accent shadow-cta hover:bg-accent-press"
+                      ? "cursor-not-allowed bg-night-border text-night-dim"
+                      : "bg-accent-dark text-night shadow-[0_10px_30px_rgba(52,209,108,0.25)] hover:bg-accent-dark2"
                   } ${pending ? "opacity-70" : ""}`}
                 >
                   {pending
-                    ? "Envoi…"
+                    ? t("common.advisory.sending")
                     : overCeiling
-                      ? `Limite €${ceiling} atteinte`
+                      ? t("common.advisory.limit_reached", { ceiling })
                       : outbid
-                        ? `Répondre à ${euro(sug)}`
-                        : `Enchérir ${euro(sug)} maintenant`}
+                        ? t("common.advisory.respond", { amount: euro(sug) })
+                        : t("common.advisory.bid_now", { amount: euro(sug) })}
                 </motion.button>
               )}
             </div>
 
-            <div className="text-center text-[11px] text-muted">
-              Une enchère = un tap. Pas d&apos;autobid, pas d&apos;ordre caché.
+            <div className="text-center text-[11px] text-night-dim">
+              {t("common.advisory.footer")}
             </div>
           </motion.div>
         </div>

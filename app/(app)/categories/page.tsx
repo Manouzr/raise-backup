@@ -2,14 +2,16 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
-import { motion } from "motion/react";
+import { motion, type HTMLMotionProps } from "motion/react";
 import type { LotEvent } from "@/lib/contracts";
 import type { PlanSummary } from "@/lib/platforms/ebay";
 import { euro, fmtEdge, fmtTime } from "@/lib/format";
 import { useApp } from "@/lib/store";
+import { useT } from "@/lib/i18n/provider";
 import { CoteBand } from "@/components/CoteBand";
 import { finalMaxBid, RiskBadge, useLotVerdict, VerdictBody } from "@/components/LotAnalysis";
-import { Card, Panel, PillButton, Reveal, WidgetChip } from "@/components/ui/taap";
+import { MarketChart } from "@/components/MarketChart";
+import { Reveal, WidgetChip } from "@/components/ui/taap";
 
 // Catégories — la cote réelle de chaque type de produit monitoré (eBay).
 // La liste est PARTAGÉE avec le radar (store.categories) : ajouter une
@@ -36,12 +38,46 @@ type MonitorResult = {
   maxHours?: number;
 };
 
+// Clés i18n — résolues via t() au rendu (le libellé dépend de la locale).
 const BASIS_LABEL: Record<string, string> = {
-  sold_90d: "ventes conclues · 90 j",
-  active_listings: "annonces actives",
+  sold_90d: "categories.basis.sold90d",
+  active_listings: "categories.basis.activeListings",
 };
 
+/* ————————————————————————— surfaces « Nuit » —————————————————————————
+   Mêmes arrondis que le kit clair (taap), mais tokens sombres — le kit
+   partagé reste clair (utilisé aussi ailleurs), on redéfinit donc ici. */
+
+function Panel({ className = "", children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={`rounded-[30px] border border-night-border bg-night-card ${className}`} {...rest}>
+      {children}
+    </div>
+  );
+}
+
+function Card({ className = "", children, ...rest }: React.HTMLAttributes<HTMLDivElement>) {
+  return (
+    <div className={`rounded-[21px] border border-night-border bg-night-elev ${className}`} {...rest}>
+      {children}
+    </div>
+  );
+}
+
+function PillButton({ className = "", children, ...rest }: HTMLMotionProps<"button">) {
+  return (
+    <motion.button
+      whileTap={{ scale: 0.97 }}
+      className={`inline-flex items-center justify-center rounded-full bg-accent-dark font-semibold text-night shadow-[0_10px_30px_rgba(52,209,108,0.25)] transition-colors hover:bg-accent-dark2 ${className}`}
+      {...rest}
+    >
+      {children}
+    </motion.button>
+  );
+}
+
 export default function CategoriesPage() {
+  const tr = useT();
   const hydrated = useApp((s) => s.hydrated);
   const categories = useApp((s) => s.categories);
   const setCategories = useApp((s) => s.setCategories);
@@ -74,17 +110,17 @@ export default function CategoriesPage() {
   const addCategory = () => {
     const t = input.trim();
     if (!t) {
-      notify("Nomme une catégorie d'abord");
+      notify(tr("categories.notify.nameFirst"));
       return;
     }
     if (categories.some((c) => c.toLowerCase() === t.toLowerCase())) {
-      notify("Cette catégorie est déjà scannée");
+      notify(tr("categories.notify.already"));
       setInput("");
       return;
     }
     setCategories([...categories, t]);
     setInput("");
-    notify(`Scan lancé : ${t}`);
+    notify(tr("categories.notify.scanStarted", { name: t }));
   };
 
   const removeCategory = (t: string) => {
@@ -94,7 +130,7 @@ export default function CategoriesPage() {
       delete n[t];
       return n;
     });
-    notify(`« ${t} » retirée du radar`);
+    notify(tr("categories.notify.removed", { name: t }));
   };
 
   // stat-chips du header — calculées sur les scans déjà arrivés
@@ -105,19 +141,23 @@ export default function CategoriesPage() {
   const totalBelow = loaded.reduce((s, r) => s + r.lots.filter((l) => l.belowMarket).length, 0);
 
   return (
-    <div className="flex-1 animate-rise overflow-y-auto px-8 py-8">
+    <div className="flex-1 animate-rise overflow-y-auto bg-night px-8 py-8">
       {/* header : titre + stat-chips */}
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4">
         <div>
-          <h1 className="headline text-[34px]">Catégories scannées</h1>
-          <div className="mt-2 text-[13.5px] text-body">
-            Dis quoi chasser — BidEdge interroge eBay et établit la cote du marché en direct.
+          <h1 className="headline text-[34px] text-white">{tr("categories.title")}</h1>
+          <div className="mt-2 text-[13.5px] text-night-text">
+            {tr("categories.subtitle")}
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 pb-1">
-          <StatChip n={categories.length} label={categories.length === 1 ? "catégorie" : "catégories"} delay={0.05} />
-          <StatChip n={totalActive} label="enchères actives" delay={0.15} />
-          <StatChip n={totalBelow} label="sous la cote" delay={0.25} accent />
+          <StatChip
+            n={categories.length}
+            label={categories.length === 1 ? tr("categories.stat.category") : tr("categories.stat.categories")}
+            delay={0.05}
+          />
+          <StatChip n={totalActive} label={tr("categories.stat.activeAuctions")} delay={0.15} />
+          <StatChip n={totalBelow} label={tr("categories.stat.belowMarket")} delay={0.25} accent />
         </div>
       </div>
 
@@ -129,15 +169,15 @@ export default function CategoriesPage() {
           onKeyDown={(e) => {
             if (e.key === "Enter") addCategory();
           }}
-          placeholder="Ajouter une catégorie… ex. « casque hi-fi vintage »"
-          className="h-11 flex-1 rounded-full border border-transparent bg-panel px-5 text-[13.5px] text-ink outline-none transition-colors placeholder:text-muted focus:border-accent"
+          placeholder={tr("categories.addPlaceholder")}
+          className="h-11 flex-1 rounded-full border border-night-border bg-night-elev px-5 text-[13.5px] text-white outline-none transition-colors placeholder:text-night-dim focus:border-accent-dark"
         />
         <PillButton onClick={addCategory} className="h-11 px-6 text-[13.5px]">
-          Scanner
+          {tr("categories.scan")}
         </PillButton>
       </div>
-      <div className="mt-2 px-5 text-[11.5px] text-muted">
-        Langage naturel accepté — ex. “iphone 17 sous 500€ sans coques”
+      <div className="mt-2 px-5 text-[11.5px] text-night-dim">
+        {tr("categories.naturalHint")}
       </div>
 
       {/* panneaux de cote */}
@@ -156,18 +196,17 @@ export default function CategoriesPage() {
         {categories.length === 0 && (
           <Reveal>
             <Panel className="flex flex-col items-center gap-2 px-8 py-16 text-center">
-              <span className="headline text-[19px]">Aucune catégorie scannée</span>
-              <span className="max-w-[400px] text-[13px] leading-relaxed text-body">
-                Décris ce que tu chasses dans la barre ci-dessus — BidEdge établit la cote,
-                surveille les enchères et te montre où est l&apos;avantage.
+              <span className="headline text-[19px] text-white">{tr("categories.emptyTitle")}</span>
+              <span className="max-w-[400px] text-[13px] leading-relaxed text-night-text">
+                {tr("categories.emptyBody")}
               </span>
             </Panel>
           </Reveal>
         )}
       </div>
 
-      <div className="mb-2 text-[11.5px] text-muted">
-        Le scan propose, toi tu choisis — chaque enchère se place sur eBay, de ta main. Jamais d&apos;autobid.
+      <div className="mb-2 text-[11.5px] text-night-dim">
+        {tr("categories.footer")}
       </div>
     </div>
   );
@@ -190,11 +229,11 @@ function StatChip({
     <WidgetChip
       appearDelay={delay}
       className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12px] ${
-        accent ? "bg-accent-tint" : "bg-panel"
+        accent ? "bg-accent/12" : "bg-night-elev"
       }`}
     >
-      <span className={`font-mono text-[13px] font-bold ${accent ? "text-accent-press" : "text-ink"}`}>{n}</span>
-      <span className={accent ? "text-accent-press" : "text-muted"}>{label}</span>
+      <span className={`font-mono text-[13px] font-bold ${accent ? "text-accent-dark" : "text-white"}`}>{n}</span>
+      <span className={accent ? "text-accent-dark" : "text-night-dim"}>{label}</span>
     </WidgetChip>
   );
 }
@@ -214,6 +253,7 @@ function CategoryPanel({
   onRemove: () => void;
   onRetry: () => void;
 }) {
+  const tr = useT();
   const notify = useApp((s) => s.notify);
   const [alertOn, setAlertOn] = useState(true);
 
@@ -239,57 +279,57 @@ function CategoryPanel({
     <Panel className="flex flex-col gap-4 p-6 sm:p-7">
       {/* rangée titre */}
       <div className="flex flex-wrap items-center gap-2.5">
-        <span className="headline text-[20px]">{type}</span>
+        <span className="headline text-[20px] text-white">{type}</span>
         {hasCote && (
-          <span className="inline-flex items-center rounded-full bg-accent-tint px-3 py-1 text-[11px] font-bold text-accent-press">
-            Cote établie
+          <span className="inline-flex items-center rounded-full bg-accent/12 px-3 py-1 text-[11px] font-bold text-accent-dark">
+            {tr("categories.panel.rateSet")}
           </span>
         )}
         {loading && (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-body">
-            <span className="h-1.5 w-1.5 animate-blink rounded-full bg-accent" />
-            scan en cours…
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-night-elev px-3 py-1 text-[11px] font-semibold text-night-text">
+            <span className="h-1.5 w-1.5 animate-blink rounded-full bg-accent-dark" />
+            {tr("categories.panel.scanning")}
           </span>
         )}
         {r?.dominantCategory && (
-          <span className="inline-flex items-center rounded-full bg-brass-tint px-2.5 py-1 text-[10.5px] font-semibold text-brass">
+          <span className="inline-flex items-center rounded-full bg-night-elev px-2.5 py-1 text-[10.5px] font-semibold text-night-text">
             {r.dominantCategory}
           </span>
         )}
         {r?.basis && (
-          <span className="inline-flex items-center rounded-full bg-white px-2.5 py-1 text-[10.5px] font-medium text-muted">
-            {BASIS_LABEL[r.basis] ?? r.basis}
+          <span className="inline-flex items-center rounded-full bg-night-elev px-2.5 py-1 text-[10.5px] font-medium text-night-dim">
+            {BASIS_LABEL[r.basis] ? tr(BASIS_LABEL[r.basis]) : r.basis}
           </span>
         )}
         <span className="flex-1" />
         {r && (
-          <span className="text-xs text-muted">
-            <span className="font-mono">{r.sampleSize}</span> comparables · à l&apos;instant
+          <span className="text-xs text-night-dim">
+            <span className="font-mono">{r.sampleSize}</span> {tr("categories.panel.comparables")}
           </span>
         )}
-        <button onClick={onRemove} className="text-xs font-semibold text-muted transition-colors hover:text-down">
-          Retirer
+        <button onClick={onRemove} className="text-xs font-semibold text-night-dim transition-colors hover:text-down">
+          {tr("categories.panel.remove")}
         </button>
       </div>
 
       {/* plan Gemini — ce que le scan a compris de la demande */}
       {r?.plan && (
-        <div className="-mt-2.5 text-[12px] text-muted">
-          {r.plan.searchQuery && <>Compris : {r.plan.searchQuery}</>}
+        <div className="-mt-2.5 text-[12px] text-night-dim">
+          {r.plan.searchQuery && tr("categories.plan.understood", { query: r.plan.searchQuery })}
           {(r.plan.excludeKeywords?.length ?? 0) > 0 && (
             <>
-              {" "}· exclu : {r.plan.excludeKeywords!.slice(0, 3).join(", ")}
+              {" "}· {tr("categories.plan.excluded", { keywords: r.plan.excludeKeywords!.slice(0, 3).join(", ") })}
               {r.plan.excludeKeywords!.length > 3 ? "…" : ""}
             </>
           )}
           {(r.plan.excludedAsParts ?? 0) > 0 && (
             <>
-              {" "}· <span className="font-mono">{r.plan.excludedAsParts}</span> pour pièces écartées
+              {" "}· <span className="font-mono">{r.plan.excludedAsParts}</span> {tr("categories.plan.partsExcluded")}
             </>
           )}
           {r.plan.maxPrice != null && (
             <>
-              {" "}· plafond <span className="font-mono">€{r.plan.maxPrice}</span>
+              {" "}· {tr("categories.plan.cap")} <span className="font-mono">€{r.plan.maxPrice}</span>
             </>
           )}
         </div>
@@ -297,91 +337,116 @@ function CategoryPanel({
 
       {/* erreur — garde le retry */}
       {result === "error" && (
-        <Card className="flex flex-wrap items-center gap-3 px-5 py-4 text-[13px] text-body">
-          Cote indisponible — vérifie que le service eBay tourne (ebay-service).
-          <button onClick={onRetry} className="font-semibold text-accent-press hover:underline">
-            Réessayer
+        <Card className="flex flex-wrap items-center gap-3 px-5 py-4 text-[13px] text-night-text">
+          {tr("categories.panel.errorUnavailable")}
+          <button onClick={onRetry} className="font-semibold text-accent-dark hover:underline">
+            {tr("categories.panel.retry")}
           </button>
         </Card>
       )}
 
-      {/* skeleton — blocs blancs qui pulsent dans le panneau gris */}
+      {/* skeleton — blocs qui pulsent dans le panneau sombre */}
       {loading && !r && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="h-[168px] animate-pulse rounded-[21px] bg-white/60" />
+          <div className="h-[168px] animate-pulse rounded-[21px] bg-night-elev" />
           <div className="flex flex-col gap-2.5">
-            <div className="h-[76px] animate-pulse rounded-[21px] bg-white/60" />
-            <div className="h-[76px] animate-pulse rounded-[21px] bg-white/60" style={{ animationDelay: "0.15s" }} />
+            <div className="h-[76px] animate-pulse rounded-[21px] bg-night-elev" />
+            <div className="h-[76px] animate-pulse rounded-[21px] bg-night-elev" style={{ animationDelay: "0.15s" }} />
           </div>
         </div>
       )}
 
       {/* scan arrivé mais pas de cote exploitable */}
       {r && !hasCote && !loading && (
-        <Card className="flex flex-wrap items-center gap-3 px-5 py-4 text-[13px] text-body">
-          Pas assez de comparables pour établir une cote fiable.
-          <button onClick={onRetry} className="font-semibold text-accent-press hover:underline">
-            Relancer le scan
+        <Card className="flex flex-wrap items-center gap-3 px-5 py-4 text-[13px] text-night-text">
+          {tr("categories.panel.notEnough")}
+          <button onClick={onRetry} className="font-semibold text-accent-dark hover:underline">
+            {tr("categories.panel.rescan")}
           </button>
         </Card>
       )}
 
       {hasCote && r && (
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_320px]">
-          {/* GAUCHE — la viz signature dans un widget blanc */}
-          <Card className="flex min-w-0 flex-col justify-between p-5">
+          {/* GAUCHE — la viz signature dans un widget surélevé */}
+          <Card className="flex min-w-0 flex-col p-5">
             <div>
-              <CoteBand
-                bandLeftPct={pct(band[0])}
-                bandWidthPct={Math.max(4, pct(band[1]) - pct(band[0]))}
-                medianPct={pct(r.median!)}
-                medianLabel={euro(r.median!)}
-                lowPct={pct(band[0])}
-                lowLabel={euro(band[0])}
-                highPct={pct(band[1])}
-                highLabel={euro(band[1])}
-                pin={
-                  pin
-                    ? { pct: pct(Math.max(scaleMin, pin.currentBid)), label: `meilleur lot · ${euro(pin.currentBid)}` }
-                    : undefined
-                }
-                className="mt-1"
-              />
-              <div className="mt-2 text-[11px] text-muted">
-                la zone teal = ce que le marché paie · le point = la meilleure enchère en cours
+              {/* la barre de cote se dévoile de gauche à droite */}
+              <motion.div
+                initial={{ clipPath: "inset(0 100% 0 0)", opacity: 0 }}
+                whileInView={{ clipPath: "inset(0 0% 0 0)", opacity: 1 }}
+                viewport={{ once: true, margin: "-80px" }}
+                transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <CoteBand
+                  bandLeftPct={pct(band[0])}
+                  bandWidthPct={Math.max(4, pct(band[1]) - pct(band[0]))}
+                  medianPct={pct(r.median!)}
+                  medianLabel={euro(r.median!)}
+                  lowPct={pct(band[0])}
+                  lowLabel={euro(band[0])}
+                  highPct={pct(band[1])}
+                  highLabel={euro(band[1])}
+                  pin={
+                    pin
+                      ? {
+                          pct: pct(Math.max(scaleMin, pin.currentBid)),
+                          label: tr("categories.panel.bestLot", { price: euro(pin.currentBid) }),
+                        }
+                      : undefined
+                  }
+                  className="mt-1"
+                />
+              </motion.div>
+              <div className="mt-2 text-[11px] text-night-dim">
+                {tr("categories.panel.bandHint")}
               </div>
             </div>
 
+            {/* graphe des prix à la clôture — remplit l'espace, façon widget */}
+            <div className="mt-4 flex-1">
+              <div className="mb-1 flex items-center gap-2">
+                <span className="overline">{tr("categories.panel.liveMarket")}</span>
+                <span className="inline-flex items-center gap-1.5 text-[10.5px] text-night-dim">
+                  <span className="h-1.5 w-1.5 rounded-full bg-accent-dark" />
+                  {tr("categories.panel.closingPrices")} ·{" "}
+                  <span className="text-accent-dark">{tr("categories.panel.belowMarketDot")}</span>
+                </span>
+              </div>
+              <MarketChart lots={r.lots} median={r.median} band={r.reliableRange} height={188} />
+            </div>
+
             {/* rangée décision */}
-            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-hairline pt-3.5 text-[12.5px] text-body">
+            <div className="mt-4 flex flex-wrap items-center gap-x-5 gap-y-1.5 border-t border-night-border pt-3.5 text-[12.5px] text-night-text">
               <span>
-                <span className="font-mono font-semibold text-ink">
+                <span className="font-mono font-semibold text-white">
                   €{Math.round(band[0])}–{Math.round(band[1])}
                 </span>{" "}
-                fourchette fiable
+                {tr("categories.panel.reliableRange")}
               </span>
               {r.maxProfitableBid != null && (
                 <span>
-                  rentable jusqu&apos;à{" "}
-                  <span className="font-mono font-semibold text-accent-press">{euro(r.maxProfitableBid)}</span>
+                  {tr("categories.panel.profitableUpTo")}{" "}
+                  <span className="font-mono font-semibold text-accent-dark">{euro(r.maxProfitableBid)}</span>
                 </span>
               )}
               <span>
-                <span className="font-mono">{r.count}</span> enchères ·{" "}
-                <span className="font-mono font-semibold text-up-strong">{opportunities.length}</span> sous la cote
+                <span className="font-mono">{r.count}</span> {tr("categories.panel.auctions")} ·{" "}
+                <span className="font-mono font-semibold text-accent-dark">{opportunities.length}</span>{" "}
+                {tr("categories.panel.belowMarket")}
               </span>
               <Link
                 href="/"
-                className="ml-auto font-semibold text-accent transition-colors hover:text-accent-press"
+                className="ml-auto font-semibold text-accent-dark transition-colors hover:text-accent-dark2"
               >
-                voir au radar →
+                {tr("categories.panel.seeOnRadar")}
               </Link>
             </div>
           </Card>
 
           {/* DROITE — meilleures opportunités, lues par l'IA */}
           <div className="flex flex-col gap-2">
-            <span className="overline px-1">Meilleures opportunités</span>
+            <span className="overline px-1">{tr("categories.panel.bestOpportunities")}</span>
             {best.map((l, i) => (
               <OpportunityCard
                 key={l.lotId}
@@ -393,9 +458,9 @@ function CategoryPanel({
             ))}
             {best.length === 0 && (
               <Card className="flex flex-1 flex-col items-center justify-center gap-1 px-5 py-8 text-center">
-                <span className="text-[12.5px] font-semibold text-ink">Rien sous la cote pour l&apos;instant</span>
-                <span className="text-[11.5px] leading-relaxed text-muted">
-                  Le scan continue — les bonnes affaires finissent toujours par sortir.
+                <span className="text-[12.5px] font-semibold text-white">{tr("categories.panel.nothingBelow")}</span>
+                <span className="text-[11.5px] leading-relaxed text-night-dim">
+                  {tr("categories.panel.nothingBelowBody")}
                 </span>
               </Card>
             )}
@@ -406,8 +471,8 @@ function CategoryPanel({
       {/* pied de panneau — l'alerte −30 % */}
       {hasCote && (
         <>
-          <div className="h-px bg-hairline" />
-          <div className="flex items-center gap-3 text-[12.5px]">
+          <div className="h-px bg-night-border" />
+          <div className="flex items-center gap-3 text-[12.5px] text-night-text">
             <button
               onClick={() => {
                 const next = !alertOn;
@@ -416,12 +481,12 @@ function CategoryPanel({
                 if (next && "Notification" in window && Notification.permission === "default") {
                   void Notification.requestPermission();
                 }
-                notify(next ? "Alerte activée" : "Alerte désactivée");
+                notify(next ? tr("categories.notify.alertOn") : tr("categories.notify.alertOff"));
                 setAlertOn(next);
               }}
               aria-pressed={alertOn}
               className={`relative h-[21px] w-9 flex-none rounded-full transition-colors duration-200 ${
-                alertOn ? "bg-accent" : "bg-control-hover"
+                alertOn ? "bg-accent-dark" : "bg-night-border"
               }`}
             >
               <span
@@ -430,7 +495,7 @@ function CategoryPanel({
               />
             </button>
             <span>
-              M&apos;alerter quand un lot passe sous <b>−30%</b> de la cote
+              {tr("categories.panel.alertPre")} <b className="text-white">−30%</b> {tr("categories.panel.alertPost")}
             </span>
           </div>
         </>
@@ -454,6 +519,7 @@ function OpportunityCard({
   median: number | null;
   maxProfitableBid: number | null;
 }) {
+  const tr = useT();
   const auto = index === 0;
   const [asked, setAsked] = useState(false);
   const [open, setOpen] = useState(false);
@@ -467,7 +533,7 @@ function OpportunityCard({
       className="animate-widget-in"
       style={{ animationDelay: `${index * 0.12}s` }}
     >
-      <Card className="flex flex-col gap-2.5 p-3 transition-shadow duration-200 hover:shadow-lift">
+      <Card className="flex flex-col gap-2.5 p-3 transition-colors duration-200 hover:border-night-border2">
         {/* miniature + titre + prix */}
         <div className="flex items-start gap-3">
           {lot.imageUrl ? (
@@ -476,53 +542,56 @@ function OpportunityCard({
               src={lot.imageUrl}
               alt=""
               loading="lazy"
-              className="h-12 w-12 flex-none rounded-[10px] bg-control object-cover"
+              className="h-12 w-12 flex-none rounded-[10px] bg-night-elev object-cover"
             />
           ) : (
-            <div className="h-12 w-12 flex-none rounded-[10px] bg-control" />
+            <div className="h-12 w-12 flex-none rounded-[10px] bg-night-elev" />
           )}
           <div className="min-w-0 flex-1">
-            <div className="line-clamp-2 text-[12.5px] font-medium leading-snug text-ink">{lot.title}</div>
-            <div className="mt-1 text-[11px] text-muted">
-              <span className="font-mono">{lot.bidCount}</span> enchères
+            <div className="line-clamp-2 text-[12.5px] font-medium leading-snug text-white">{lot.title}</div>
+            <div className="mt-1 text-[11px] text-night-dim">
+              <span className="font-mono">{lot.bidCount}</span> {tr("categories.opportunity.bids")}
               {lot.closesInSec > 0 && (
                 <>
-                  {" "}· ferme dans <span className="font-mono">{fmtTime(lot.closesInSec)}</span>
+                  {" "}· {tr("categories.opportunity.closesIn")} <span className="font-mono">{fmtTime(lot.closesInSec)}</span>
                 </>
               )}
             </div>
           </div>
           <div className="flex flex-none flex-col items-end gap-0.5">
-            <span className="font-mono text-[13px] font-semibold text-ink">{euro(lot.currentBid)}</span>
+            <span className="font-mono text-[13px] font-semibold text-white">{euro(lot.currentBid)}</span>
             {lot.edgePct != null && (
-              <span className="font-mono text-[11px] font-semibold text-up-strong">{fmtEdge(lot.edgePct)}</span>
+              <span className="font-mono text-[11px] font-semibold text-accent-dark">{fmtEdge(lot.edgePct)}</span>
             )}
           </div>
         </div>
 
         {/* ligne analyse : Analyser / Lecture… / verdict + ouvrir */}
-        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-t border-hairline pt-2.5">
+        <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1.5 border-t border-night-border pt-2.5">
           {!enabled && state === "idle" && (
             <button
               onClick={() => setAsked(true)}
-              className="text-[11.5px] font-semibold text-muted transition-colors hover:text-accent-press"
+              className="text-[11.5px] font-semibold text-night-dim transition-colors hover:text-accent-dark"
             >
-              Analyser
+              {tr("categories.opportunity.analyze")}
             </button>
           )}
           {enabled && (state === "idle" || state === "loading") && (
-            <span className="inline-flex items-center gap-1.5 text-[11.5px] text-muted">
-              <span className="h-1.5 w-1.5 animate-blink rounded-full bg-accent" />
-              Lecture…
+            <span className="inline-flex items-center gap-1.5 text-[11.5px] text-night-dim">
+              <span className="h-1.5 w-1.5 animate-blink rounded-full bg-accent-dark" />
+              {tr("categories.opportunity.reading")}
             </span>
           )}
-          {state === "error" && <span className="text-[11.5px] text-muted">Analyse indisponible</span>}
+          {state === "error" && (
+            <span className="text-[11.5px] text-night-dim">{tr("categories.opportunity.unavailable")}</span>
+          )}
           {state === "done" && verdict && risk && (
             <>
               <RiskBadge risk={risk} />
               {maxBid != null && (
-                <span className="text-[11.5px] text-body">
-                  max final <span className="font-mono font-semibold text-accent-press">{euro(maxBid)}</span>
+                <span className="text-[11.5px] text-night-text">
+                  {tr("categories.opportunity.finalMax")}{" "}
+                  <span className="font-mono font-semibold text-accent-dark">{euro(maxBid)}</span>
                 </span>
               )}
             </>
@@ -533,9 +602,9 @@ function OpportunityCard({
               href={lot.itemWebUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-[11.5px] font-semibold text-accent transition-colors hover:text-accent-press"
+              className="text-[11.5px] font-semibold text-accent-dark transition-colors hover:text-accent-dark2"
             >
-              ouvrir →
+              {tr("categories.opportunity.open")}
             </a>
           )}
         </div>
@@ -545,21 +614,23 @@ function OpportunityCard({
           open ? (
             <button
               onClick={() => setOpen(false)}
-              className="rounded-[10px] bg-panel px-3 py-2.5 text-left"
+              className="rounded-[10px] bg-night-elev px-3 py-2.5 text-left"
             >
               <VerdictBody verdict={verdict} compact />
-              <span className="mt-1.5 block text-[10.5px] font-semibold text-muted">replier ↑</span>
+              <span className="mt-1.5 block text-[10.5px] font-semibold text-night-dim">
+                {tr("categories.opportunity.collapse")}
+              </span>
             </button>
           ) : (
             <button
               onClick={() => setOpen(true)}
-              className="group -mt-0.5 text-left text-[11.5px] leading-snug text-body"
+              className="group -mt-0.5 text-left text-[11.5px] leading-snug text-night-text"
             >
               <span className="line-clamp-1">
-                {verdict.resume ?? verdict.etatReel ?? "Voir le détail de l'analyse"}
+                {verdict.resume ?? verdict.etatReel ?? tr("categories.opportunity.seeAnalysis")}
               </span>
-              <span className="text-[10.5px] font-semibold text-muted transition-colors group-hover:text-accent-press">
-                détails ↓
+              <span className="text-[10.5px] font-semibold text-night-dim transition-colors group-hover:text-accent-dark">
+                {tr("categories.opportunity.details")}
               </span>
             </button>
           )
