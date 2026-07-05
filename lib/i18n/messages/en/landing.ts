@@ -146,7 +146,7 @@ export const landing = {
     },
     q2: {
       q: "Which platforms?",
-      a: "eBay, Catawiki and Drouot at launch. BidEdge stays your copilot: it spots and suggests, you place the bid at the right moment.",
+      a: "Drouot and Catawiki at launch. BidEdge stays your copilot: it spots and suggests, you place the bid at the right moment.",
     },
     q3: {
       q: "Where does the quote come from?",

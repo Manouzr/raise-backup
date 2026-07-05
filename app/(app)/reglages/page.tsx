@@ -325,22 +325,6 @@ export default function ReglagesPage() {
           initial={{ opacity: 0, y: 10 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true, margin: "-40px" }}
-          transition={{ duration: 0.35, delay: 0, ease: [0.22, 1, 0.36, 1] }}
-          className="flex items-center gap-3 py-[9px] text-[13.5px]"
-        >
-          <span className="flex h-[30px] w-[30px] items-center justify-center rounded-lg bg-night-elev text-[11px] font-semibold text-night-text">
-            eB
-          </span>
-          <span className="font-semibold text-white">eBay</span>
-          <span className="text-xs text-night-dim">manou_92</span>
-          <span className="flex-1" />
-          {connectedBadge}
-        </motion.div>
-        <div className="h-px bg-night-border" />
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true, margin: "-40px" }}
           transition={{ duration: 0.35, delay: 0.06, ease: [0.22, 1, 0.36, 1] }}
           className="flex items-center gap-3 py-[9px] text-[13.5px]"
         >

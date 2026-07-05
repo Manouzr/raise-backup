@@ -1,7 +1,7 @@
 export const categories = {
   // header
   title: "Scanned categories",
-  subtitle: "Tell it what to hunt — BidEdge queries eBay and sets the live market rate.",
+  subtitle: "Tell it what to hunt — BidEdge queries Drouot and sets the live market rate.",
   stat: {
     category: "category",
     categories: "categories",
@@ -16,7 +16,7 @@ export const categories = {
   emptyTitle: "No categories scanned",
   emptyBody:
     "Describe what you're hunting in the bar above — BidEdge sets the market rate, watches the auctions and shows you where the edge is.",
-  footer: "The scan suggests, you decide — every bid is placed on eBay, by your own hand. Never autobid.",
+  footer: "The scan suggests, you decide — every bid is placed on Drouot, by your own hand. Never autobid.",
   // toast notifications
   notify: {
     nameFirst: "Name a category first",
@@ -37,7 +37,7 @@ export const categories = {
     scanning: "scanning…",
     comparables: "comparables · just now",
     remove: "Remove",
-    errorUnavailable: "Rate unavailable — check that the eBay service is running (ebay-service).",
+    errorUnavailable: "Rate unavailable — check that the Drouot service is running.",
     retry: "Retry",
     notEnough: "Not enough comparables to set a reliable rate.",
     rescan: "Rescan",

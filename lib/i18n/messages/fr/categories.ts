@@ -1,7 +1,7 @@
 export const categories = {
   // header
   title: "Catégories scannées",
-  subtitle: "Dis quoi chasser — BidEdge interroge eBay et établit la cote du marché en direct.",
+  subtitle: "Dis quoi chasser — BidEdge interroge Drouot et établit la cote du marché en direct.",
   stat: {
     category: "catégorie",
     categories: "catégories",
@@ -16,7 +16,7 @@ export const categories = {
   emptyTitle: "Aucune catégorie scannée",
   emptyBody:
     "Décris ce que tu chasses dans la barre ci-dessus — BidEdge établit la cote, surveille les enchères et te montre où est l'avantage.",
-  footer: "Le scan propose, toi tu choisis — chaque enchère se place sur eBay, de ta main. Jamais d'autobid.",
+  footer: "Le scan propose, toi tu choisis — chaque enchère se place sur Drouot, de ta main. Jamais d'autobid.",
   // toast notifications
   notify: {
     nameFirst: "Nomme une catégorie d'abord",
@@ -37,7 +37,7 @@ export const categories = {
     scanning: "scan en cours…",
     comparables: "comparables · à l'instant",
     remove: "Retirer",
-    errorUnavailable: "Cote indisponible — vérifie que le service eBay tourne (ebay-service).",
+    errorUnavailable: "Cote indisponible — vérifie que le service Drouot est bien lancé.",
     retry: "Réessayer",
     notEnough: "Pas assez de comparables pour établir une cote fiable.",
     rescan: "Relancer le scan",

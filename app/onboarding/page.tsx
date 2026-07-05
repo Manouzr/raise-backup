@@ -27,9 +27,8 @@ const RAIL_STEPS = [
 ];
 
 const PLATFORMS = [
-  { id: "ebay", ini: "eB", name: "eBay" },
-  { id: "catawiki", ini: "Ca", name: "Catawiki" },
   { id: "drouot", ini: "Dr", name: "Drouot" },
+  { id: "catawiki", ini: "Ca", name: "Catawiki" },
 ] as const;
 
 type PlatformId = (typeof PLATFORMS)[number]["id"];
@@ -73,9 +72,8 @@ export default function OnboardingPage() {
   const [budget, setBudget] = useState("€ 600");
   const [ceiling, setCeiling] = useState("€ 150");
   const [plat, setPlat] = useState<Record<PlatformId, boolean>>({
-    ebay: false,
-    catawiki: false,
     drouot: false,
+    catawiki: false,
   });
   const [scan, setScan] = useState(0);
 

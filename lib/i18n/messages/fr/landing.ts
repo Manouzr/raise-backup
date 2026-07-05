@@ -146,7 +146,7 @@ export const landing = {
     },
     q2: {
       q: "Quelles plateformes ?",
-      a: "eBay, Catawiki et Drouot au lancement. BidEdge reste ton copilote : il repère et suggère, tu places l'enchère au bon moment.",
+      a: "Drouot et Catawiki au lancement. BidEdge reste ton copilote : il repère et suggère, tu places l'enchère au bon moment.",
     },
     q3: {
       q: "D'où vient la cote ?",
