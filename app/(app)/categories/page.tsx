@@ -90,7 +90,8 @@ export default function CategoriesPage() {
   const fetchType = useCallback(async (type: string) => {
     setLoading((l) => ({ ...l, [type]: true }));
     try {
-      const res = await fetch(`/api/monitor?q=${encodeURIComponent(type)}`);
+      // quota eBay épuisé → source Drouot (même forme de payload)
+      const res = await fetch(`/api/monitor?q=${encodeURIComponent(type)}&source=drouot`);
       if (!res.ok) throw new Error();
       const data = (await res.json()) as MonitorResult;
       setResults((r) => ({ ...r, [type]: data }));

@@ -10,9 +10,11 @@ import type { PlatformAdapter } from "./adapter";
 // Vercel) ; à défaut, en production on vise le service déployé, en local le
 // localhost. Idéalement, définir EBAY_API_URL=https://raise-backup.vercel.app
 // dans les variables d'environnement du projet Vercel.
-const BASE = () =>
+export const serviceBaseUrl = () =>
   process.env.EBAY_API_URL ??
   (process.env.NODE_ENV === "production" ? "https://raise-backup.vercel.app" : "http://localhost:5000");
+
+const BASE = serviceBaseUrl;
 
 type EbaySummary = {
   itemId?: string;

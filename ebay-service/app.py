@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 
+import drouot_client
 from ebay_collector import EbayAuthError, EbayCollector
 from gemini_filter import analyze_lot, apply_plan, plan_search, plan_summary
 from market import evaluate as evaluate_deal
@@ -141,6 +142,31 @@ def auctions():
 def item(item_id):
     data = collector.get_item(item_id)
     return jsonify(data)
+
+
+@app.get("/drouot/monitor")
+def drouot_monitor():
+    """Monitoring DROUOT — même forme que /api/monitor, sans dépendre du quota
+    eBay. Cote = médiane des estimations des commissaires-priseurs."""
+    try:
+        q = _q()
+    except ValueError as e:
+        return _err(str(e), 422)
+    margin = _to_float(request.args.get("margin"))
+    return jsonify(drouot_client.monitor(q, margin=margin if margin is not None else 0.20))
+
+
+@app.get("/drouot/lot/analyze")
+def drouot_lot_analyze():
+    """Verdict IA d'un lot Drouot (Gemini sur la description du lot)."""
+    lot_id = (request.args.get("id") or "").strip()
+    if not lot_id:
+        return _err("Paramètre 'id' requis", 422)
+    median = _to_float(request.args.get("median"))
+    verdict = drouot_client.analyze(lot_id, median)
+    if verdict is None:
+        return _err("Analyse indisponible (clé Gemini ou lot introuvable)", 503)
+    return jsonify({"itemId": f"drouot-{lot_id}", "verdict": verdict})
 
 
 @app.get("/lot/analyze")

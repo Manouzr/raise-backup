@@ -83,6 +83,9 @@ export default function RadarPage() {
   const [selected, setSelected] = useState<{ lot: MonitorLot; type: string } | null>(null);
   const [oppLimit, setOppLimit] = useState(6);
   const [showRest, setShowRest] = useState(false);
+  // source de données : eBay (Browse) ou Drouot (ventes à venir). Défaut Drouot
+  // tant que le quota eBay est épuisé.
+  const [source, setSource] = useState<"ebay" | "drouot">("drouot");
 
   // flags hors rendu : alertes déjà émises, cloche
   const alertedIdsRef = useRef<Set<string>>(new Set());
@@ -150,19 +153,21 @@ export default function RadarPage() {
     async (type: string) => {
       setLoading((l) => ({ ...l, [type]: true }));
       try {
-        const res = await fetch(`/api/monitor?q=${encodeURIComponent(type)}&max_hours=${maxHours}`);
+        const res = await fetch(
+          `/api/monitor?q=${encodeURIComponent(type)}&max_hours=${maxHours}&source=${source}`,
+        );
         if (res.ok) {
           const data = (await res.json()) as MonitorResult;
           setResults((r) => ({ ...r, [type]: { ...data, fetchedAt: Date.now() } }));
           maybeAlert(data);
         }
       } catch {
-        // service eBay injoignable — on garde ce qu'on a
+        // service injoignable — on garde ce qu'on a
       } finally {
         setLoading((l) => ({ ...l, [type]: false }));
       }
     },
-    [maxHours, maybeAlert],
+    [maxHours, source, maybeAlert],
   );
 
   // POLLING (pas de SSE) — sur serverless (Vercel) un flux SSE finit par
@@ -201,6 +206,13 @@ export default function RadarPage() {
     if (h === maxHours) return;
     setMaxHours(h);
     setResults({}); // fenêtre différente = lots différents — on repart à zéro
+  };
+
+  const changeSource = (s: "ebay" | "drouot") => {
+    if (s === source) return;
+    setSource(s);
+    setResults({}); // source différente = lots différents
+    setActiveType(null);
   };
 
   const toggleAlerts = () => {
@@ -318,6 +330,20 @@ export default function RadarPage() {
         <span className="flex-1" />
         {/* contrôles regroupés — discrets, pas des tuiles de dashboard */}
         <div className="flex items-center gap-2 text-[11.5px]">
+          {/* source des données : Drouot (défaut, eBay hors quota) ou eBay */}
+          <div className="flex items-center rounded-full bg-night-elev p-0.5">
+            {(["drouot", "ebay"] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => changeSource(s)}
+                className={`rounded-full px-2.5 py-1 font-semibold transition-colors ${
+                  source === s ? "bg-night-border2 text-white" : "text-night-dim hover:text-white"
+                }`}
+              >
+                {s === "drouot" ? "Drouot" : "eBay"}
+              </button>
+            ))}
+          </div>
           <div className="flex items-center rounded-full bg-night-elev p-0.5">
             {WINDOWS.map((w) => (
               <button
